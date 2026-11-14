@@ -6,7 +6,28 @@
 если все веса нулевые, вся работа уходит первому живому пулу.
 
 Статистика, сложность, ping и проверка coinbase ведутся отдельно для каждого из
-4 пулов. Новая вкладкаSettings и дашборд показывают 4 пула и их доли хешрейта.
+4 пулов. Settings и дашборд показывают 4 пула и их доли хешрейта.
+
+## Определение модели платы
+
+Прошивка привязана к ASIC — для каждой модели свой `BOARD`:
+
+| Модель | ASIC | BOARD | Файл OTA |
+|---|---|---|---|
+| NerdQAxe+ | 4 × BM1368 | `NERDQAXEPLUS` | `esp-miner-NerdQAxe+.bin` |
+| NerdQAxe++ | 4 × BM1370 | `NERDQAXEPLUS2` | `esp-miner-NerdQAxe++.bin` |
+
+Узнать наверняка, не вскрывая корпус:
+
+```bash
+curl -s http://<IP>/api/v2/settings | grep -E 'deviceModel|asicModel'
+curl -s http://<IP>/api/system/info | grep -E 'deviceModel|asicCount|hashRate'
+```
+
+Дополнительно: главная страница веб-панели, mDNS TXT
+(`dns-sd -L NerdQAxe _http._tcp local` → `asic=BM1370 family=NerdQAxe++`),
+маркировка чипов, каталоги `nerdqaxe+/` и `nerdqaxe++/` в repos `qaxe`.
+`www.bin` одинаков для всех плат.
 
 ## Включение
 
@@ -28,9 +49,9 @@
    localStorage.setItem('support-level-expiry', String(Date.now() + 86400000));
    location.reload();
    ```
-3. Появится карточка **Legacy**:
-   - **Manual Firmware Update** → `esp-miner-NerdQAxe+.bin` → `Flash`,
-   - после перезагрузки **Manual WWW Update** → `www.bin` → `Flash`.
+3. Появится карточка **Legacy Update**:
+   - **Manual Firmware Upload** → `esp-miner-<Модель>.bin` → `Flash`,
+   - после перезагрузки **Manual WWW Upload** → `www.bin` → `Flash`.
 
 Имена файлов проверяются панелью буквально; порядок «сначала firmware, потом www»
 обязателен, иначе новая панель будет обращаться к старому API.
@@ -44,10 +65,10 @@
 ## Сборка
 
 ```bash
-BOARD=NERDQAXEPLUS idf.py set-target esp32s3
-BOARD=NERDQAXEPLUS idf.py build          # внутри esp-idf-builder:5.3.6
+BOARD=NERDQAXEPLUS  idf.py set-target esp32s3   # или NERDQAXEPLUS2
+BOARD=NERDQAXEPLUS  idf.py build               # внутри esp-idf-builder:5.3.6
 cd main/http_server/axe-os && npm ci && npm run build
 ```
 
-Для других плат замените `BOARD` (`NERDQAXEPLUS2`, `NERDQX`, ...).
-`www.bin` одинаков для всех плат.
+Для смены платы достаточно пересобрать приложение с другим `BOARD`;
+`www.bin` пересобирать не нужно.
