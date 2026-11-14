@@ -72,19 +72,20 @@
   <nb-card class="mb-0">
     <nb-card-header>{{ 'SWARM.OVERVIEW' | translate }}</nb-card-header>
 
-    <nb-card-body *ngIf="swarm.length; else empty">
-      <table class="swarm-table">
-        @let dp = hasDualPoolRows();
+    <nb-card-body *ngIf="swarm.length; else empty" style="overflow-x: auto;">
+      <table class="swarm-table" [class.quad-pool]="poolColumnCount > 2">
+        @let dp = hasMultiPoolRows();
+        @let n = poolColumnCount;
         <thead>
           <tr>
             <th>{{ 'SWARM.IP_ADDRESS' | translate }}</th>
-            <th [colSpan]="dp ? 2 : 1">{{ 'SWARM.HASH_RATE' | translate }}</th>
+            <th [colSpan]="dp ? n : 1">{{ 'SWARM.HASH_RATE' | translate }}</th>
             <th>{{ 'SWARM.UPTIME' | translate }}</th>
-            <th [colSpan]="dp ? 2 : 1">{{ 'SWARM.SHARES' | translate }}</th>
+            <th [colSpan]="dp ? n : 1">{{ 'SWARM.SHARES' | translate }}</th>
             <th>{{ 'SWARM.POWER' | translate }}</th>
             <th>{{ 'SWARM.TEMP' | translate }}</th>
-            <th [colSpan]="dp ? 2 : 1">{{ 'SWARM.POOL_DIFF' | translate }}</th>
-            <th [colSpan]="dp ? 2 : 1">{{ 'SWARM.BEST_DIFF' | translate }}</th>
+            <th [colSpan]="dp ? n : 1">{{ 'SWARM.POOL_DIFF' | translate }}</th>
+            <th [colSpan]="dp ? n : 1">{{ 'SWARM.BEST_DIFF' | translate }}</th>
             <th>{{ 'SWARM.VERSION' | translate }}</th>
             <th>&nbsp;</th>
             <th>&nbsp;</th>
@@ -92,17 +93,13 @@
           </tr>
           <tr *ngIf="dp" class="dual-pool-header">
             <td></td>
-            <td>Pool 1</td>
-            <td>Pool 2</td>
+            @for (i of poolIndexes(); track i) { <td>Pool {{ i + 1 }}</td> }
             <td></td>
-            <td>Pool 1</td>
-            <td>Pool 2</td>
+            @for (i of poolIndexes(); track i) { <td>Pool {{ i + 1 }}</td> }
             <td></td>
             <td></td>
-            <td>Pool 1</td>
-            <td>Pool 2</td>
-            <td>Pool 1</td>
-            <td>Pool 2</td>
+            @for (i of poolIndexes(); track i) { <td>Pool {{ i + 1 }}</td> }
+            @for (i of poolIndexes(); track i) { <td>Pool {{ i + 1 }}</td> }
             <td></td>
             <td>&nbsp;</td>
             <td>&nbsp;</td>
@@ -112,9 +109,7 @@
         </thead>
         <tbody>
           <ng-container *ngFor="let axe of swarm">
-            @let dualPool = isDualPoolEntry(axe);
-            @let p0 = axe.stratum?.pools[0];
-            @let p1 = axe.stratum?.pools[1];
+            @let dualPool = isMultiPoolEntry(axe);
             <tr class="base-row">
               <!-- IP with swarmColor dot -->
 
@@ -127,13 +122,13 @@
               </td>
 
               <!-- Hash Rate -->
-              <td [colSpan]="dp ? 2 : 1">{{ axe.hashRate * 1000000000 | hashSuffix }}</td>
+              <td [colSpan]="dp ? n : 1">{{ axe.hashRate * 1000000000 | hashSuffix }}</td>
 
               <!-- Uptime -->
               <td [rowSpan]="dualPool ? 2 : 1">{{ axe.uptimeSeconds | dateAgo: {intervals: 2} }}</td>
 
               <!-- Shares (Accepted & Rejected) -->
-              <td [colSpan]="dp ? 2 : 1">
+              <td [colSpan]="dp ? n : 1">
                 <div [nbTooltip]="'UPDATE.SHARES_ACCEPTED' | translate" tooltipPosition="top">
                   {{ axe.sharesAccepted | number:'1.0-0' }}
                 </div>
@@ -157,10 +152,10 @@
               </td>
 
               <!-- Stratum Pool Diff -->
-              <td [colSpan]="dp ? 2 : 1">{{ axe.poolDifficulty | number:'1.0-0' }}</td>
+              <td [colSpan]="dp ? n : 1">{{ axe.poolDifficulty | number:'1.0-0' }}</td>
 
               <!-- Best Diff with Best Session Diff tooltip -->
-              <td [colSpan]="dp ? 2 : 1">
+              <td [colSpan]="dp ? n : 1">
                 <div>{{ axe.bestDiff | humanReadable }}</div>
                 <div *ngIf="!dualPool" [nbTooltip]="'UPDATE.BEST_SESSION_DIFF' | translate" tooltipPosition="top"
                   class="text-sm">
@@ -194,24 +189,36 @@
               </td>
             </tr>
             <tr *ngIf="dualPool" class="dual-pool-2nd-row">
-              @let c0 = isPoolConnected(axe, 0);
-              @let c1 = isPoolConnected(axe, 1);
-              @let e0 = c0 ? '' : 'text-danger';
-              @let e1 = c1 ? '' : 'text-danger';
-              <td class="shrink {{ e0 }}">{{ getActivePoolHashrate(axe, 0) | hashSuffix }}</td>
-              <td class="shrink {{ e1 }}">{{ getActivePoolHashrate(axe, 1) | hashSuffix }}</td>
-              <td class="shrink {{ e0 }}">
-                {{ c0 ? p0.accepted : 0 }}<br />
-                {{ c0 ? p0.rejected : 0 }}
-              </td>
-              <td class="shrink {{ e1 }}">
-                {{ c1 ? p1.accepted : 0 }}<br />
-                {{ c1 ? p1.rejected : 0 }}
-              </td>
-              <td class="shrink {{ e0 }}">{{ c0 ? p0.poolDifficulty : 0 }}</td>
-              <td class="shrink {{ e1 }}">{{ c1 ? p1.poolDifficulty : 0 }}</td>
-              <td class="shrink {{ e0 }}">{{ (c0 ? p0.bestDiff : 0) | humanReadable }}</td>
-              <td class="shrink {{ e1 }}">{{ (c1 ? p1.bestDiff : 0) | humanReadable }}</td>
+              @let slots = poolSlots(axe);
+              <!-- Hash rate per pool -->
+              @for (slot of slots; track slot.idx) {
+                @let c = isPoolConnected(axe, slot.idx);
+                <td class="shrink {{ c ? '' : 'text-danger' }}" [class.group-end]="slot.idx === n - 1">
+                  {{ (c ? getActivePoolHashrate(axe, slot.idx) : 0) | hashSuffix }}
+                </td>
+              }
+              <!-- Shares per pool -->
+              @for (slot of slots; track slot.idx) {
+                @let c = isPoolConnected(axe, slot.idx);
+                <td class="shrink {{ c ? '' : 'text-danger' }}" [class.group-end]="slot.idx === n - 1">
+                  {{ c ? (slot.pool?.accepted ?? 0) : 0 }}<br />
+                  {{ c ? (slot.pool?.rejected ?? 0) : 0 }}
+                </td>
+              }
+              <!-- Pool difficulty per pool -->
+              @for (slot of slots; track slot.idx) {
+                @let c = isPoolConnected(axe, slot.idx);
+                <td class="shrink {{ c ? '' : 'text-danger' }}" [class.group-end]="slot.idx === n - 1">
+                  {{ c ? (slot.pool?.poolDifficulty ?? 0) : 0 }}
+                </td>
+              }
+              <!-- Best diff per pool -->
+              @for (slot of slots; track slot.idx) {
+                @let c = isPoolConnected(axe, slot.idx);
+                <td class="shrink {{ c ? '' : 'text-danger' }}" [class.group-end]="slot.idx === n - 1">
+                  {{ (c ? (slot.pool?.bestDiff ?? 0) : 0) | humanReadable }}
+                </td>
+              }
             </tr>
 
           </ng-container>

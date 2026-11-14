@@ -412,43 +412,73 @@ export class SwarmComponent implements OnInit, OnDestroy {
     .sort((a, b) => a.label.localeCompare(b.label));
   }
 
-  public isDualPoolEntry(axe: any): boolean {
-    return !!axe?.stratum
-      && axe.stratum.poolMode === 1
-      && Array.isArray(axe.stratum.pools)
-      && axe.stratum.pools.length >= 2;
-  }
-
-  public hasDualPoolRows(): boolean {
+  /** Number of per-pool columns: 1 (failover), 2 (dual) or 4 (quad). */
+  public get poolColumnCount(): number {
+    let max = 1;
     for (const axe of this.swarm) {
-      if (axe.stratum !== undefined) {
-        return true;
-      }
+      const pools = axe?.stratum?.pools;
+      if (Array.isArray(pools) && pools.length > max) max = pools.length;
     }
-    return false;
+    return Math.min(max, 4); // MAX_POOLS on the firmware side
   }
 
-  public getActivePoolHashrate(axe, i: 0 | 1) {
+  public poolIndexes(): number[] {
+    return Array.from({ length: this.poolColumnCount }, (_, i) => i);
+  }
+
+  /** One slot per table column; missing pools stay empty for mixed swarms. */
+  public poolSlots(axe: any): { idx: number; pool: IPool | null }[] {
+    const pools: IPool[] = Array.isArray(axe?.stratum?.pools) ? axe.stratum.pools : [];
+    return this.poolIndexes().map(idx => ({ idx, pool: pools[idx] ?? null }));
+  }
+
+  public isMultiPoolEntry(axe: any): boolean {
+    return Array.isArray(axe?.stratum?.pools) && axe.stratum.pools.length >= 2;
+  }
+
+  public hasMultiPoolRows(): boolean {
+    return this.poolColumnCount > 1;
+  }
+
+  // Kept as aliases for compatibility with older callers/tests.
+  public isDualPoolEntry(axe: any): boolean { return this.isMultiPoolEntry(axe); }
+  public hasDualPoolRows(): boolean { return this.hasMultiPoolRows(); }
+
+  public getActivePoolHashrate(axe: any, i: number) {
     const balance = this.getActiveBalance(axe, i);
-    return axe.hashRate * balance * 10000000;
+    return (axe?.hashRate ?? 0) * balance * 10000000; // GH/s * share% -> H/s
   }
 
-  public getActiveBalance(axe, i: 0 | 1) {
-    const stratum = axe.stratum;
-    const active = stratum.pools.map((p: IPool) => p.connected && !p.verifyBlocked);
-    const balance = stratum.poolBalance;
+  public getActiveBalance(axe: any, i: number): number {
+    const stratum = axe?.stratum;
+    const pools: IPool[] = Array.isArray(stratum?.pools) ? stratum.pools : [];
+    const usable = pools.map((p: IPool | undefined) => !!p?.connected && !p?.verifyBlocked);
 
-    // If neither pool is active
-    if (!active[0] && !active[1]) return 0;
+    // Quad-pool: jobs are distributed by per-pool weight (same logic as the
+    // home dashboard / firmware smooth weighted round-robin).
+    if (stratum?.activePoolMode === 2 || stratum?.poolMode === 2) {
+      if (!usable[i]) return 0;
 
-    // If both pools are active
-    if (active[0] && active[1]) return i === 0 ? balance : 100 - balance;
+      let totalWeight = 0;
+      for (let j = 0; j < pools.length; j++) {
+        if (usable[j]) totalWeight += Math.max(0, Number(pools[j]?.weight ?? 0));
+      }
 
-    // Only one pool is active → return 100 for that pool, 0 for the other
-    return active[i] ? 100 : 0;
+      if (totalWeight <= 0) {
+        // All weights are zero: firmware sends all work to the first usable pool.
+        return i === usable.findIndex(Boolean) ? 100 : 0;
+      }
+      return Math.max(0, Number(pools[i]?.weight ?? 0)) / totalWeight * 100;
+    }
+
+    // Failover / dual-pool: upstream 50/50-style balance logic.
+    const balance = stratum?.poolBalance ?? 0;
+    if (!usable[0] && !usable[1]) return 0;
+    if (usable[0] && usable[1]) return i === 0 ? balance : 100 - balance;
+    return usable[i] ? 100 : 0;
   }
 
-  public isPoolConnected(axe, i: 0 | 1) {
-    return axe.stratum.pools[i].connected;
+  public isPoolConnected(axe: any, i: number): boolean {
+    return !!axe?.stratum?.pools?.[i]?.connected;
   }
 }

@@ -52,12 +52,12 @@ td:nth-child(11) button {
 .base-row td:nth-child(6),
 .base-row td:nth-child(7),
 .base-row td:nth-child(8),
-.base-row td:nth-child(9),
-.dual-pool-2nd-row td:nth-child(2),
-.dual-pool-2nd-row td:nth-child(4),
-.dual-pool-2nd-row td:nth-child(6),
-.dual-pool-2nd-row td:nth-child(8),
-.dual-pool-2nd-row td:nth-child(9) {
+.base-row td:nth-child(9) {
+    border-right: 1px solid var(--card-divider-color);
+}
+
+/* Last column of each per-pool group (2 or 4 pools). */
+.dual-pool-2nd-row td.group-end {
     border-right: 1px solid var(--card-divider-color);
 }
 
@@ -80,6 +80,7 @@ td:nth-child(11) button {
   position: relative;
   top: -4px;
 /*
+
   position: relative;
   top: -24px;
 */
@@ -95,6 +96,18 @@ td:nth-child(11) button {
   padding-right: 5px;
 }
 */
+
+/* Quad-pool mode: four per-pool columns per metric. Keep them compact;
+   the card body scrolls horizontally when the table gets too wide. */
+.quad-pool .dual-pool-header td {
+  min-width: 52px;
+  font-size: 68%;
+}
+.quad-pool .dual-pool-2nd-row td {
+  font-size: 68%;
+  padding: 0.35rem;
+}
+
 .base-row td:nth-child(12), .base-row td:nth-child(11), .base-row td:nth-child(10) {
   width: 50px;
 }
