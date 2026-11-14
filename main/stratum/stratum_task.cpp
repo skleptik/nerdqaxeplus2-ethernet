@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -41,11 +42,10 @@
 StratumTaskBase::StratumTaskBase(StratumManager *manager, int index)
     : m_manager(manager), m_index(index)
 {
-    if (!index) {
-        m_tag = "stratum task (Pri)";
-    } else {
-        m_tag = "stratum task (Sec)";
-    }
+    // Pool 1..MAX_POOLS: a numeric tag keeps quad-pool logs unambiguous
+    // (the old "Pri"/"Sec" labels lumped pools 2..4 together as "Sec").
+    snprintf(m_tagBuffer, sizeof(m_tagBuffer), "stratum task (P%u)", (unsigned) (index + 1));
+    m_tag = m_tagBuffer;
 
     m_config = new StratumConfig(index);
 }

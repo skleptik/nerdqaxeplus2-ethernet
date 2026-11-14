@@ -34,6 +34,7 @@ class StratumTaskBase {
     int m_index = 0;                     ///< Index of the Stratum task (0 = primary, 1 = secondary)
 
     const char *m_tag = nullptr; ///< Debug tag for logging
+    char m_tagBuffer[32]{};      ///< Per-instance storage for the pool-specific tag
 
     StratumTransport  *m_transport = nullptr;
 
