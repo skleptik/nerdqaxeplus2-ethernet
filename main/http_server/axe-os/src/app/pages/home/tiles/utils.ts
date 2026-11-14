@@ -563,6 +563,11 @@ export function applyPowerUsageBarAliases(info: any, cfg: PowerUsageAliasCfg): v
   if (!(maxA != null && Number.isFinite(maxA) && maxA > 0)) maxA = fallbackMaxA;
   if (maxA <= minA) maxA = minA + minRangeA;
 
+  // Never clip the meter. Some high-power boards (e.g. the 8 TH/s
+  // YYSLUPING NerdQAxe++ clone) draw 12-13 A while upstream firmware
+  // reports an 8 A limit. Grow the range with headroom in that case.
+  if (currentA > maxA) maxA = Math.ceil(currentA * 1.2);
+
   (info as any).currentA = currentA;
   (info as any).minCurrentA = minA;
   (info as any).maxCurrentA = parseFloat(Number(maxA).toFixed(1));

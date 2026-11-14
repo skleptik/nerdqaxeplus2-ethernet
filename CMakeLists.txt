@@ -23,6 +23,12 @@ else()
     message(STATUS "Standard screen mode (320x170)")
 endif()
 
+# YYSLUPING NerdYYSP++ 8 TH/s high-power board (300 W / 25 A / 1000 MHz).
+if(DEFINED ENV{YYSP_HIGH_POWER} AND "$ENV{YYSP_HIGH_POWER}" STREQUAL "1")
+    add_compile_definitions(YYSP_HIGH_POWER)
+    message(STATUS "YYSLUPING high-power profile enabled (300 W / 25 A / 1000 MHz)")
+endif()
+
 set(ENV{SOURCE_DATE_EPOCH} 0)
 
 

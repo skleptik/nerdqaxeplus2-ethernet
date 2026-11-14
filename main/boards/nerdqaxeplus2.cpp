@@ -54,6 +54,28 @@ NerdQaxePlus2::NerdQaxePlus2() : NerdQaxePlus() {
     m_minCurrentA = 0.0f;
     m_maxCurrentA = 8.0f;
 
+#ifdef YYSP_HIGH_POWER
+    // YYSLUPING NerdYYSP++ 8 TH/s high-power variant: ~150 W / 12-13 A at
+    // 12 V, 1000 MHz ASICs, 480x320 panel. Upstream defaults (100 W / 8 A /
+    // 800 MHz) clip the current and power meters and cap the ASIC frequency
+    // on this hardware. The vendor firmware reports 300 W / 25 A.
+    m_maxPin = 300.0f;
+    m_minPin = 52.0f;
+    m_maxCurrentA = 25.0f;
+    m_absMaxAsicFrequency = 1000;
+    m_absMaxAsicVoltageMillis = 1400;
+    // Upstream sets IOUT_OC_FAULT_LIMIT to 95 A (3 phases x 30 A + 5). At
+    // 1000 MHz / 1.25 V this board pulls ~110-120 A on the core rail, so the
+    // PMBus over-current bit trips and power_management_task calls
+    // setVoltage(0) -> "CURRENT PROTECTION" on screen. The hardware is rated
+    // for it (12-13 A at 12 V input), so raise the PMBus threshold.
+    m_ifault = 180.0f;
+    m_asicFrequencies = {500, 515, 525, 550, 575, 590, 600, 625, 650, 675, 700, 725,
+                         750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000};
+    m_asicVoltages = {1120, 1130, 1140, 1150, 1160, 1170, 1180, 1190, 1200, 1210,
+                      1220, 1230, 1240, 1250, 1260, 1270, 1280, 1290, 1300};
+#endif
+
     m_asicMaxDifficulty = 2048;
     m_asicMinDifficulty = 512;
     m_asicMinDifficultyDualPool = 256;
@@ -75,9 +97,12 @@ void NerdQaxePlus2::applyRev7Profile()
     m_hasRev7TPS546 = true;
     m_version = 502;
     m_vr_maxTemp = TPS546_THROTTLE_TEMP;
+#ifndef YYSP_HIGH_POWER
+    // Keep the high-power limits when building for the 8 TH/s YYSLUPING board.
     m_maxPin = 120.0f;
     m_minPin = 45.0f;
     m_maxCurrentA = 10.0f;
+#endif
     m_absMaxAsicFrequency = 1000;
     m_asicFrequencies = {500, 515, 525, 550, 575, 590, 600, 625, 650, 675, 700, 725,
                          750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000};
