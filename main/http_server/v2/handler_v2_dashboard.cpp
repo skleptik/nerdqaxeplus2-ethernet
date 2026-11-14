@@ -144,21 +144,27 @@ esp_err_t GET_V2_dashboard(httpd_req_t *req)
         STRATUM_MANAGER->getManagerInfoJson(stratum, true);
 
         // Enrich each pool entry with host / port / user from NVS config
-        char *urls[2]  = { Config::getStratumURL(), Config::getStratumFallbackURL() };
-        char *users[2] = { Config::getStratumUser(), Config::getStratumFallbackUser() };
-        int   ports[2] = { (int) Config::getStratumPortNumber(), (int) Config::getStratumFallbackPortNumber() };
+        char *urls[StratumManager::MAX_POOLS]  = {};
+        char *users[StratumManager::MAX_POOLS] = {};
+        int   ports[StratumManager::MAX_POOLS] = {};
+        for (int i = 0; i < StratumManager::MAX_POOLS; i++) {
+            urls[i]  = Config::getStratumURLAt(i);
+            users[i] = Config::getStratumUserAt(i);
+            ports[i] = (int) Config::getStratumPortAt(i);
+        }
 
-        // the managers report both pools in config order (0 = primary,
-        // 1 = fallback/secondary), so the array index is the config index
+        // the managers report all pools in config order (0 = primary,
+        // 1 = fallback/secondary, 2/3 = quad pools), so the array index is
+        // the config index
         JsonArray pools = stratum["pools"].as<JsonArray>();
-        for (int i = 0; i < (int) pools.size() && i < 2; i++) {
+        for (int i = 0; i < (int) pools.size() && i < StratumManager::MAX_POOLS; i++) {
             JsonObject pool = pools[i].as<JsonObject>();
             pool["host"] = urls[i];
             pool["port"] = ports[i];
             pool["user"] = users[i];
         }
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < StratumManager::MAX_POOLS; i++) {
             if (urls[i])  free(urls[i]);
             if (users[i]) free(users[i]);
         }
@@ -176,7 +182,7 @@ esp_err_t GET_V2_dashboard(httpd_req_t *req)
         JsonObject coinbase = doc["coinbase"].to<JsonObject>();
 
         JsonArray blockHeaders = coinbase["blockHeaders"].to<JsonArray>();
-        for (int p = 0; p < 2; p++) {
+        for (int p = 0; p < StratumManager::MAX_POOLS; p++) {
             const coinbase_result_t cb = STRATUM_MANAGER->getCoinbaseResult(p);
             if (cb.block_height > 0) {
                 JsonObject bh = blockHeaders.add<JsonObject>();
@@ -195,7 +201,7 @@ esp_err_t GET_V2_dashboard(httpd_req_t *req)
         }
 
         JsonArray cbPools = coinbase["pools"].to<JsonArray>();
-        for (int p = 0; p < 2; p++) {
+        for (int p = 0; p < StratumManager::MAX_POOLS; p++) {
             JsonObject cp = cbPools.add<JsonObject>();
             cp["mode"]   = Config::getCoinbaseVerifyMode(p);
             cp["maxFee"] = Config::getCoinbaseMaxFee(p) / 10.0f;

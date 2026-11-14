@@ -65,6 +65,9 @@
                             <nb-option [value]="1">
                                 {{ 'SETTINGS.POOL_MODE_DUAL' | translate }}
                             </nb-option>
+                            <nb-option [value]="2">
+                                {{ 'SETTINGS.POOL_MODE_QUAD' | translate }}
+                            </nb-option>
                         </nb-select>
                     </div>
                 </div>
@@ -202,6 +205,13 @@
                                 <small *ngIf="form.controls['coinbaseVerifyMode'].value === 2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED_HINT' | translate }}</small>
                             </div>
                         </div>
+                        <div class="form-row" *ngIf="form.controls['poolMode'].value === 2">
+                            <label class="form-label">{{ 'SETTINGS.POOL_WEIGHT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput formControlName="stratumWeight" type="number" min="0" max="100" step="1" />
+                                <small class="text-hint">{{ 'SETTINGS.POOL_WEIGHT_HINT' | translate }}</small>
+                            </div>
+                        </div>
                     </nb-card-body>
                 </nb-tab>
 
@@ -316,6 +326,211 @@
                                 </div>
                                 <small *ngIf="form.controls['fallbackCoinbaseVerifyMode'].value === 1">{{ 'SECURITY.COINBASE_VERIFY_BASIC_HINT' | translate }}</small>
                                 <small *ngIf="form.controls['fallbackCoinbaseVerifyMode'].value === 2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                        <div class="form-row" *ngIf="form.controls['poolMode'].value === 2">
+                            <label class="form-label">{{ 'SETTINGS.POOL_WEIGHT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput formControlName="fallbackStratumWeight" type="number" min="0" max="100" step="1" />
+                                <small class="text-hint">{{ 'SETTINGS.POOL_WEIGHT_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                    </nb-card-body>
+                </nb-tab>
+
+                <!-- Pool 3 (quad-pool mode only) -->
+                <nb-tab *ngIf="form.controls['poolMode'].value === 2" [tabTitle]="poolTabHeader(2)">
+                    <nb-card-body>
+                        <div class="form-row">
+                            <label class="form-label">{{ 'SETTINGS.STRATUM_PROTOCOL' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <nb-select formControlName="p2StratumProtocol">
+                                    <nb-option [value]="0">{{ 'SETTINGS.STRATUM_V1' | translate }}</nb-option>
+                                    <nb-option [value]="1">{{ 'SETTINGS.STRATUM_V2' | translate }}</nb-option>
+                                </nb-select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p2StratumURL" class="form-label">{{ 'SETTINGS.STRATUM_HOST' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p2StratumURL" type="text" formControlName="p2StratumURL" /><br />
+                                <small>{{ 'SETTINGS.STRATUM_HOST_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p2StratumPort" class="form-label">{{ 'SETTINGS.STRATUM_PORT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p2StratumPort" formControlName="p2StratumPort" type="number" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p2StratumUser" class="form-label">{{ 'SETTINGS.STRATUM_USER' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p2StratumUser" formControlName="p2StratumUser" type="text" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p2StratumPassword" class="form-label">{{ 'SETTINGS.STRATUM_PASSWORD' | translate }}:</label>
+                            <div class="input-with-icon">
+                                <input nbInput id="p2StratumPassword" formControlName="p2StratumPassword"
+                                    [type]="showP2StratumPassword ? 'text' : 'password'"
+                                    placeholder="Enter stratum password" />
+                                <button nbButton ghost (click)="toggleP2StratumPasswordVisibility()" type="button"
+                                    class="icon-button">
+                                    <nb-icon [icon]="showP2StratumPassword ? 'eye-off-outline' : 'eye-outline'"
+                                        pack="eva"></nb-icon>
+                                </button>
+                            </div>
+                        </div>
+                        <ng-container *ngIf="form.controls['p2StratumProtocol'].value === 1">
+                            <div class="form-row">
+                                <label for="p2Sv2AuthorityPubkey" class="form-label">{{ 'SETTINGS.SV2_AUTHORITY_PUBKEY' | translate }}:</label>
+                                <div class="form-control-wrapper">
+                                    <input nbInput id="p2Sv2AuthorityPubkey" type="text" formControlName="p2Sv2AuthorityPubkey" /><br />
+                                    <small>{{ 'SETTINGS.SV2_AUTHORITY_PUBKEY_HINT' | translate }}</small>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <nb-checkbox formControlName="p2Sv2RequireAuth">{{ 'SETTINGS.SV2_REQUIRE_AUTH' | translate }}</nb-checkbox><br />
+                                <small>{{ 'SETTINGS.SV2_REQUIRE_AUTH_HINT' | translate }}</small>
+                            </div>
+                        </ng-container>
+                        <div class="form-row" *ngIf="form.controls['p2StratumProtocol'].value === 0">
+                            <nb-checkbox formControlName="p2StratumTLS">{{ 'MINING.STRATUM_TLS' | translate}}</nb-checkbox>
+                        </div>
+                        <div class="form-row" *ngIf="form.controls['p2StratumProtocol'].value === 0">
+                            <nb-checkbox formControlName="p2StratumEnonceSubscribe">{{ 'MINING.ENABLE_EXTRANONCE' | translate }}</nb-checkbox>
+                        </div>
+                        <div class="form-row" style="align-items: flex-start;">
+                            <nb-checkbox [checked]="form.controls['p2CoinbaseVerifyMode'].value > 0"
+                                         (checkedChange)="toggleCoinbaseVerify($event, 'p2CoinbaseVerifyMode', 'lastP2CoinbaseVerifyMode')"
+                                         style="margin-top: 6px;">
+                                {{ 'SECURITY.COINBASE_VERIFY_TITLE' | translate }}
+                            </nb-checkbox>
+                            <div *ngIf="form.controls['p2CoinbaseVerifyMode'].value > 0"
+                                 style="flex: 1; min-width: 0; margin-left: 8px; display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <nb-select formControlName="p2CoinbaseVerifyMode" style="min-width: unset;">
+                                        <nb-option [value]="1">{{ 'SECURITY.COINBASE_VERIFY_BASIC' | translate }}</nb-option>
+                                        <nb-option [value]="2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED' | translate }}</nb-option>
+                                    </nb-select>
+                                    <div *ngIf="form.controls['p2CoinbaseVerifyMode'].value === 2" style="display: flex; align-items: center; gap: 4px;">
+                                        <input nbInput formControlName="p2CoinbaseMaxFee" type="number" min="0" max="100" step="0.1" style="width: 55px;" />
+                                        <span>%</span>
+                                    </div>
+                                    <span class="hint-tooltip" style="margin-left: 16px;">
+                                        <nb-checkbox formControlName="p2CoinbaseVerifyForce">{{ 'SECURITY.COINBASE_VERIFY_FORCE' | translate }}</nb-checkbox>
+                                        <span class="hint-tooltip__text">{{ 'SECURITY.COINBASE_VERIFY_FORCE_TOOLTIP' | translate }}</span>
+                                    </span>
+                                </div>
+                                <small *ngIf="form.controls['p2CoinbaseVerifyMode'].value === 1">{{ 'SECURITY.COINBASE_VERIFY_BASIC_HINT' | translate }}</small>
+                                <small *ngIf="form.controls['p2CoinbaseVerifyMode'].value === 2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                        <div class="form-row" *ngIf="form.controls['poolMode'].value === 2">
+                            <label class="form-label">{{ 'SETTINGS.POOL_WEIGHT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput formControlName="p2Weight" type="number" min="0" max="100" step="1" />
+                                <small class="text-hint">{{ 'SETTINGS.POOL_WEIGHT_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                    </nb-card-body>
+                </nb-tab>
+
+                <!-- Pool 4 (quad-pool mode only) -->
+                <nb-tab *ngIf="form.controls['poolMode'].value === 2" [tabTitle]="poolTabHeader(3)">
+                    <nb-card-body>
+                        <div class="form-row">
+                            <label class="form-label">{{ 'SETTINGS.STRATUM_PROTOCOL' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <nb-select formControlName="p3StratumProtocol">
+                                    <nb-option [value]="0">{{ 'SETTINGS.STRATUM_V1' | translate }}</nb-option>
+                                    <nb-option [value]="1">{{ 'SETTINGS.STRATUM_V2' | translate }}</nb-option>
+                                </nb-select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p3StratumURL" class="form-label">{{ 'SETTINGS.STRATUM_HOST' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p3StratumURL" type="text" formControlName="p3StratumURL" /><br />
+                                <small>{{ 'SETTINGS.STRATUM_HOST_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p3StratumPort" class="form-label">{{ 'SETTINGS.STRATUM_PORT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p3StratumPort" formControlName="p3StratumPort" type="number" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p3StratumUser" class="form-label">{{ 'SETTINGS.STRATUM_USER' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput id="p3StratumUser" formControlName="p3StratumUser" type="text" />
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label for="p3StratumPassword" class="form-label">{{ 'SETTINGS.STRATUM_PASSWORD' | translate }}:</label>
+                            <div class="input-with-icon">
+                                <input nbInput id="p3StratumPassword" formControlName="p3StratumPassword"
+                                    [type]="showP3StratumPassword ? 'text' : 'password'"
+                                    placeholder="Enter stratum password" />
+                                <button nbButton ghost (click)="toggleP3StratumPasswordVisibility()" type="button"
+                                    class="icon-button">
+                                    <nb-icon [icon]="showP3StratumPassword ? 'eye-off-outline' : 'eye-outline'"
+                                        pack="eva"></nb-icon>
+                                </button>
+                            </div>
+                        </div>
+                        <ng-container *ngIf="form.controls['p3StratumProtocol'].value === 1">
+                            <div class="form-row">
+                                <label for="p3Sv2AuthorityPubkey" class="form-label">{{ 'SETTINGS.SV2_AUTHORITY_PUBKEY' | translate }}:</label>
+                                <div class="form-control-wrapper">
+                                    <input nbInput id="p3Sv2AuthorityPubkey" type="text" formControlName="p3Sv2AuthorityPubkey" /><br />
+                                    <small>{{ 'SETTINGS.SV2_AUTHORITY_PUBKEY_HINT' | translate }}</small>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <nb-checkbox formControlName="p3Sv2RequireAuth">{{ 'SETTINGS.SV2_REQUIRE_AUTH' | translate }}</nb-checkbox><br />
+                                <small>{{ 'SETTINGS.SV2_REQUIRE_AUTH_HINT' | translate }}</small>
+                            </div>
+                        </ng-container>
+                        <div class="form-row" *ngIf="form.controls['p3StratumProtocol'].value === 0">
+                            <nb-checkbox formControlName="p3StratumTLS">{{ 'MINING.STRATUM_TLS' | translate}}</nb-checkbox>
+                        </div>
+                        <div class="form-row" *ngIf="form.controls['p3StratumProtocol'].value === 0">
+                            <nb-checkbox formControlName="p3StratumEnonceSubscribe">{{ 'MINING.ENABLE_EXTRANONCE' | translate }}</nb-checkbox>
+                        </div>
+                        <div class="form-row" style="align-items: flex-start;">
+                            <nb-checkbox [checked]="form.controls['p3CoinbaseVerifyMode'].value > 0"
+                                         (checkedChange)="toggleCoinbaseVerify($event, 'p3CoinbaseVerifyMode', 'lastP3CoinbaseVerifyMode')"
+                                         style="margin-top: 6px;">
+                                {{ 'SECURITY.COINBASE_VERIFY_TITLE' | translate }}
+                            </nb-checkbox>
+                            <div *ngIf="form.controls['p3CoinbaseVerifyMode'].value > 0"
+                                 style="flex: 1; min-width: 0; margin-left: 8px; display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <nb-select formControlName="p3CoinbaseVerifyMode" style="min-width: unset;">
+                                        <nb-option [value]="1">{{ 'SECURITY.COINBASE_VERIFY_BASIC' | translate }}</nb-option>
+                                        <nb-option [value]="2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED' | translate }}</nb-option>
+                                    </nb-select>
+                                    <div *ngIf="form.controls['p3CoinbaseVerifyMode'].value === 2" style="display: flex; align-items: center; gap: 4px;">
+                                        <input nbInput formControlName="p3CoinbaseMaxFee" type="number" min="0" max="100" step="0.1" style="width: 55px;" />
+                                        <span>%</span>
+                                    </div>
+                                    <span class="hint-tooltip" style="margin-left: 16px;">
+                                        <nb-checkbox formControlName="p3CoinbaseVerifyForce">{{ 'SECURITY.COINBASE_VERIFY_FORCE' | translate }}</nb-checkbox>
+                                        <span class="hint-tooltip__text">{{ 'SECURITY.COINBASE_VERIFY_FORCE_TOOLTIP' | translate }}</span>
+                                    </span>
+                                </div>
+                                <small *ngIf="form.controls['p3CoinbaseVerifyMode'].value === 1">{{ 'SECURITY.COINBASE_VERIFY_BASIC_HINT' | translate }}</small>
+                                <small *ngIf="form.controls['p3CoinbaseVerifyMode'].value === 2">{{ 'SECURITY.COINBASE_VERIFY_EXTENDED_HINT' | translate }}</small>
+                            </div>
+                        </div>
+                        <div class="form-row" *ngIf="form.controls['poolMode'].value === 2">
+                            <label class="form-label">{{ 'SETTINGS.POOL_WEIGHT' | translate }}:</label>
+                            <div class="form-control-wrapper">
+                                <input nbInput formControlName="p3Weight" type="number" min="0" max="100" step="1" />
+                                <small class="text-hint">{{ 'SETTINGS.POOL_WEIGHT_HINT' | translate }}</small>
                             </div>
                         </div>
                     </nb-card-body>

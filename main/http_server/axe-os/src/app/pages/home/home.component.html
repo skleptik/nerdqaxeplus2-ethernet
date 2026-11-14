@@ -16,6 +16,16 @@
         [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-1'"
         [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
         aria-hidden="true">{{ getPoolVerificationTooltip(1) }}</span>
+  @if (isQuadPool) {
+    <span class="power-bar-tooltip pool-verify-tooltip"
+          [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-2'"
+          [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
+          aria-hidden="true">{{ getPoolVerificationTooltip(2) }}</span>
+    <span class="power-bar-tooltip pool-verify-tooltip"
+          [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-3'"
+          [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
+          aria-hidden="true">{{ getPoolVerificationTooltip(3) }}</span>
+  }
   <div *ngIf="info$ | async as info; else loading">
     <div *ngIf="!info.system.shutdown; else shutdown">
       <!-- Chart (full width, top) -->
@@ -128,29 +138,24 @@
                         <span class="pool-summary-square__hashrate-unit">{{ 'UNITS.HASHRATE' | translate }}</span>
                       </div>
 
-                      <!-- Dual pool: dotted separator to the right of the main value -->
-                      <span *ngIf="isDualPool" class="pool-summary-square__hashrate-main-divider"
+                      <!-- Dual/quad pool: dotted separator to the right of the main value -->
+                      <span *ngIf="isDualPool || isQuadPool" class="pool-summary-square__hashrate-main-divider"
                             aria-hidden="true"></span>
                     </div>
 
-                    <!-- Dual pool: show per-pool hashrates stacked, without units + with assignment % -->
-                    <div *ngIf="isDualPool" class="pool-summary-square__hashrate-split" aria-hidden="true">
-                      <div class="pool-summary-square__hashrate-split-row">
-                        <span
-                          class="pool-summary-square__hashrate-split-value">{{ getPoolHashrate(0) | number: '1.2-2' }}</span>
-                        <span class="pool-summary-square__hashrate-split-divider" aria-hidden="true"></span>
-                        <span
-                          class="pool-summary-square__hashrate-split-pct">{{ getActiveBalance(0) | number: '1.0-0' }}
-                          %</span>
-                      </div>
-                      <div class="pool-summary-square__hashrate-split-row">
-                        <span
-                          class="pool-summary-square__hashrate-split-value">{{ getPoolHashrate(1) | number: '1.2-2' }}</span>
-                        <span class="pool-summary-square__hashrate-split-divider" aria-hidden="true"></span>
-                        <span
-                          class="pool-summary-square__hashrate-split-pct">{{ getActiveBalance(1) | number: '1.0-0' }}
-                          %</span>
-                      </div>
+                    <!-- Dual/quad pool: show per-pool hashrates stacked, without units + with assignment % -->
+                    <div *ngIf="isDualPool || isQuadPool" class="pool-summary-square__hashrate-split"
+                         [class.pool-summary-square__hashrate-split--quad]="isQuadPool" aria-hidden="true">
+                      @for (entry of getVisiblePools(); track entry.idx) {
+                        <div class="pool-summary-square__hashrate-split-row">
+                          <span
+                            class="pool-summary-square__hashrate-split-value">{{ getPoolHashrate(entry.idx) | number: '1.2-2' }}</span>
+                          <span class="pool-summary-square__hashrate-split-divider" aria-hidden="true"></span>
+                          <span
+                            class="pool-summary-square__hashrate-split-pct">{{ getActiveBalance(entry.idx) | number: '1.0-0' }}
+                            %</span>
+                        </div>
+                      }
                     </div>
                   </div>
                 </div>
@@ -207,11 +212,13 @@
 
         <!-- Pools container -->
         <div class="col-12 col-xl-6 mt-3 mt-xl-0">
-          @let poolLeft = isDualPool ? getPoolInfo(0) : getPoolInfo();
+          @let poolLeft = (isDualPool || isQuadPool) ? getPoolInfo(0) : getPoolInfo();
           @let poolRight = isDualPool ? getPoolInfo(1) : null;
           @let usingFallback = info.stratum.usingFallback;
 
-          <nb-card class="h-100 pool-tile-card" [class.pool-tile-card--dual]="isDualPool">
+          <nb-card class="h-100 pool-tile-card"
+                   [class.pool-tile-card--dual]="isDualPool"
+                   [class.pool-tile-card--quad]="isQuadPool">
             <nb-card-body class="no-scroll pool-tile-card__body" style="position: relative;">
 
               <button
@@ -224,10 +231,12 @@
                 <nb-icon icon="refresh-outline"></nb-icon>
               </button>
 
-              <div class="pool-tile-layout pool-tile-layout--mirror" [class.pool-tile-layout--dual]="isDualPool">
+              <div class="pool-tile-layout pool-tile-layout--mirror"
+                   [class.pool-tile-layout--dual]="isDualPool"
+                   [class.pool-tile-layout--quad]="isQuadPool">
 
                 <!-- SINGLE POOL -->
-                <ng-container *ngIf="!isDualPool">
+                <ng-container *ngIf="!isDualPool && !isQuadPool">
                   <div class="pool-tile-section pool-tile-section--single" role="group">
                     <ng-container
                       [ngTemplateOutlet]="poolHalf"
@@ -253,10 +262,22 @@
                   </div>
                 </ng-container>
 
+                <!-- QUAD POOL: stack all configured pools inside the same white container -->
+                <ng-container *ngIf="isQuadPool">
+                  @for (entry of getVisiblePools(); track entry.idx) {
+                    <div class="pool-tile-section pool-tile-section--quad" role="group">
+                      <ng-container
+                        [ngTemplateOutlet]="poolHalf"
+                        [ngTemplateOutletContext]="{ pool: entry.pool, idx: entry.idx, usingFallback: false, disconnected: !entry.pool?.connected, blockedReason: entry.pool?.verifyBlocked }">
+                      </ng-container>
+                    </div>
+                  }
+                </ng-container>
+
               </div>
 
               <!-- Nerd*OS logo (single pool) -->
-              <div class="nerdos-logo-wrap nerdos-logo-wrap--single" *ngIf="!isDualPool">
+              <div class="nerdos-logo-wrap nerdos-logo-wrap--single" *ngIf="!isDualPool && !isQuadPool">
                 <div class="nerdos-logo-wrap__inner" [style.--nerdos-logo-color]="nerdOsLogoColor">
                   <div
                     class="nerdos-logo"
@@ -268,21 +289,21 @@
 
               <!-- Templates -->
               <ng-template #poolHalf let-pool="pool" let-idx="idx" let-usingFallback="usingFallback" let-disconnected="disconnected" let-blockedReason="blockedReason">
-                <div class="pool-tile-half" dir="ltr" [class.pool-tile-half--dual]="isDualPool">
+                <div class="pool-tile-half" dir="ltr" [class.pool-tile-half--dual]="isDualPool || isQuadPool">
 
                   <!-- Grey metric bar -->
                   <div class="pool-tile-metricbar fill-colors"
                        [attr.role]="disconnected || blockedReason ? 'status' : 'group'"
                        [attr.aria-live]="disconnected || blockedReason ? 'polite' : null"
                        [attr.aria-label]="('POOL_INFO.TITLE' | translate) + ': ' + (pool?.host ?? '')"
-                       [class.pool-tile-metricbar--alloc]="isDualPool && !disconnected && !blockedReason"
+                       [class.pool-tile-metricbar--alloc]="(isDualPool || isQuadPool) && !disconnected && !blockedReason"
                        [class.pool-tile-metricbar--error]="disconnected || !!blockedReason"
                        [class.pool-tile-metricbar--disconnected]="disconnected || !!blockedReason"
                        [style.background]="(disconnected || !!blockedReason) ? 'var(--fill-crit-color, var(--color-danger-500))' : null">
 
                     <ng-container *ngIf="!disconnected && !blockedReason">
-                      <div class="pool-tile-metricbar__fill" *ngIf="isDualPool"
-                           [style.width.%]="getActiveBalance((idx ?? 0) === 0 ? 0 : 1)"></div>
+                      <div class="pool-tile-metricbar__fill" *ngIf="isDualPool || isQuadPool"
+                           [style.width.%]="getActiveBalance(idx ?? 0)"></div>
 
                       <div class="pool-tile-metricbar__inner">
 
@@ -292,7 +313,7 @@
                             <div class="pool-tile-metricbar__value">
                               <ng-container *ngIf="splitHumanReadable(pool.bestDiff | humanReadable) as bd">
                                 {{ bd.value }}<span class="unit" *ngIf="bd.unit">&nbsp;{{ bd.unit }}</span>
-                                <span class="pool-tile-metricbar__label-inline" *ngIf="(!isDualPool || (idx ?? 0) === 0)">
+                                <span class="pool-tile-metricbar__label-inline" *ngIf="(!isDualPool && !isQuadPool) || (idx ?? 0) === 0">
                                   {{ 'HOME.BEST_DIFF_BOOT' | translate }}
                                 </span>
                               </ng-container>
@@ -362,7 +383,7 @@
                           />
                         </a>
 
-                        <span *ngIf="!isDualPool" class="text-hint">
+                        <span *ngIf="!isDualPool && !isQuadPool" class="text-hint">
                           {{ 'POOL_INFO.TITLE' | translate }}
                           (
                           {{
@@ -372,11 +393,11 @@
                           )
                           {{ pool?.activeProtocol === 1 ? 'SV2' : 'SV1' }}<nb-icon *ngIf="pool?.encrypted" icon="lock-outline" title="Encrypted"></nb-icon>
                         </span>
-                        <span *ngIf="isDualPool" class="text-hint">Pool {{ (idx ?? 0) + 1 }} {{ pool?.activeProtocol === 1 ? 'SV2' : 'SV1' }}<nb-icon *ngIf="pool?.encrypted" icon="lock-outline" title="Encrypted"></nb-icon></span>
+                        <span *ngIf="isDualPool || isQuadPool" class="text-hint">Pool {{ (idx ?? 0) + 1 }} {{ pool?.activeProtocol === 1 ? 'SV2' : 'SV1' }}<nb-icon *ngIf="pool?.encrypted" icon="lock-outline" title="Encrypted"></nb-icon></span>
                       </div>
 
-                      <!-- Dual pool: show the pool allocation % in the title (right-aligned) -->
-                      <div *ngIf="isDualPool" class="pool-tile-details__header-right">
+                      <!-- Dual/quad pool: show the pool allocation % in the title (right-aligned) -->
+                      <div *ngIf="isDualPool || isQuadPool" class="pool-tile-details__header-right">
                         <span class="pool-tile-details__allocpct">{{ getActiveBalance(idx ?? 0) | number: '1.0-0' }}%</span>
                       </div>
                     </div>
@@ -673,8 +694,8 @@
             </div>
           </div>
 
-          <!-- Nerd*OS logo (dual pool) -->
-          <div class="nerdos-logo-row nerdos-logo-row--dual" *ngIf="isDualPool">
+          <!-- Nerd*OS logo (dual/quad pool) -->
+          <div class="nerdos-logo-row nerdos-logo-row--dual" *ngIf="isDualPool || isQuadPool">
             <div class="nerdos-logo-wrap nerdos-logo-wrap--dual">
               <div class="nerdos-logo-wrap__inner" [style.--nerdos-logo-color]="nerdOsLogoColor">
                 <div

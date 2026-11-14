@@ -261,6 +261,23 @@ nb-card-header{
   min-height: var(--metric-square);
 }
 
+/* Quad pool: four compact rows. With four pools the tile must be allowed to
+   grow taller than the hashrate square, otherwise each row becomes unreadable. */
+.pool-tile-card--quad{
+  height: auto !important;
+}
+
+.pool-tile-layout--quad{
+  gap: 6px;
+  height: auto;
+  min-height: 0;
+}
+
+.pool-tile-layout--quad .pool-tile-section{
+  flex: 0 0 auto;
+  min-height: 84px;
+}
+
 .pool-tile-section{
   flex: 1 1 0;
   min-height: 0;
@@ -571,6 +588,20 @@ nb-card-header{
   }
 
   .pool-tile-layout--dual .pool-tile-section{
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .pool-tile-card--quad{
+    height: auto !important;
+  }
+
+  .pool-tile-layout--quad{
+    height: auto;
+    min-height: 0;
+  }
+
+  .pool-tile-layout--quad .pool-tile-section{
     flex: 0 0 auto;
     min-height: 0;
   }
@@ -934,6 +965,12 @@ nb-card-header{
   justify-content: flex-start;
   gap: 8px;
   line-height: 1;
+}
+
+/* Quad pool: four per-pool lines need to be a bit more compact. */
+.pool-summary-square__hashrate-split--quad{
+  gap: 4px;
+  font-size: 0.98rem;
 }
 
 .pool-summary-square__hashrate-split-value{

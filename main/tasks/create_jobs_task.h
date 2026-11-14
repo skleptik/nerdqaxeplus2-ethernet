@@ -27,7 +27,8 @@ class MiningInfoBase {
 };
 
 // Global mining info instances - one per pool slot, protocol-polymorphic
-extern MiningInfoBase* miningInfo[2];
+// Slots 0/1 serve failover and dual-pool modes, slots 2/3 are used by quad-pool.
+extern MiningInfoBase* miningInfo[4];
 
 // Mutex for protecting miningInfo access
 extern pthread_mutex_t current_stratum_job_mutex;

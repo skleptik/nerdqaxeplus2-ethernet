@@ -28,6 +28,7 @@ export interface ISettingsV2Pool {
     coinbaseVerifyMode: number;
     coinbaseMaxFee: number;
     coinbaseVerifyForce: boolean;
+    weight?: number;
 }
 
 export interface ISettingsV2 {

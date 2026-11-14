@@ -519,6 +519,7 @@ export class HomeComponent implements AfterViewChecked, OnInit, OnDestroy {
   private historyDrainer: HomeHistoryDrainer;
   public hasChipTemps: boolean = false;
   public isDualPool: boolean = false;
+  public isQuadPool: boolean = false;
   private historyMinTimestampMs: number | null = null;
   // History drain rendering (to avoid "laggy" incremental build)
   private historyDrainRenderThrottleMs: number = HOME_CFG.historyDrain.renderThrottleMs;
@@ -843,6 +844,7 @@ export class HomeComponent implements AfterViewChecked, OnInit, OnDestroy {
         this.vrTempBarCritWanted = derived.vrTempBarCritWanted;
 
         this.isDualPool = derived.isDualPool;
+        this.isQuadPool = derived.isQuadPool;
         this.hasChipTemps = derived.hasChipTemps;
 
         return info;
@@ -1192,9 +1194,12 @@ ngOnInit() {
     // Hashrate for pill (and any live reference): ALWAYS from pool sums, converted to H/s.
     // getPoolHashrate() returns GH/s, while the chart series values are in H/s.
     try {
-      const a = Number(this.getPoolHashrate(0));
-      const b = Number(this.getPoolHashrate(1));
-      const sumGh = (Number.isFinite(a) ? a : 0) + (Number.isFinite(b) ? b : 0);
+      const pools = this._info?.stratum?.pools ?? [];
+      let sumGh = 0;
+      for (let i = 0; i < pools.length; i++) {
+        const v = Number(this.getPoolHashrate(i));
+        if (Number.isFinite(v)) sumGh += v;
+      }
       if (!Number.isFinite(sumGh) || sumGh <= 0) return 0;
       const hs = sumGh * 1e9;
       if (Number.isFinite(hs) && hs > 0) {
@@ -1902,30 +1907,57 @@ private setAxisPadding(cfg: any, persist: boolean = false): void {
 
   // Toggle only if feature exists, then persist
 
-  public getPoolHashrate(i: 0 | 1) {
+  public getPoolHashrate(i: number) {
     if (!this._info?.stratum) return 0;
     const balance = this.getActiveBalance(i);
     return this._info.performance.hashRate * balance / 100.0;
   }
 
-  public getActiveBalance(i: 0 | 1) {
+  public getActiveBalance(i: number) {
     const stratum = this._info?.stratum;
     if (!stratum) return 0;
-    const active = stratum.pools.map((p: IDashboardV2Pool) => p.connected && !p.verifyBlocked);
+
+    const pools: IDashboardV2Pool[] = stratum.pools ?? [];
+
+    // Quad-pool mode distributes work by per-pool weight (smooth weighted
+    // round-robin on the firmware side). Pools that are disconnected,
+    // verify-blocked or have weight 0 get no allocation.
+    if (this.isQuadPool) {
+      const isUsable = (p: IDashboardV2Pool | undefined): boolean =>
+        !!p && !!p.connected && !p.verifyBlocked;
+      const pool = pools[i];
+      if (!isUsable(pool)) return 0;
+
+      let totalWeight = 0;
+      for (const p of pools) {
+        if (isUsable(p)) totalWeight += Math.max(0, Number(p.weight ?? 0));
+      }
+
+      if (totalWeight <= 0) {
+        // All weights are zero: the firmware falls back to the first usable pool.
+        const firstUsable = pools.findIndex((p) => isUsable(p));
+        return i === firstUsable ? 100 : 0;
+      }
+
+      const weight = Math.max(0, Number(pool.weight ?? 0));
+      return (weight / totalWeight) * 100;
+    }
+
+    const active = pools.map((p: IDashboardV2Pool) => p.connected && !p.verifyBlocked);
     const balance = stratum.poolBalance;
 
     // If neither pool is active
     if (!active[0] && !active[1]) return 0;
 
     // If both pools are active
-    if (active[0] && active[1]) return i === 0 ? balance : 100 - balance;
+    if (active[0] && active[1]) return i === 0 ? balance ?? 0 : 100 - (balance ?? 0);
 
     // Only one pool is active → return 100 for that pool, 0 for the other
     return active[i] ? 100 : 0;
   }
 
 
-  public getPoolInfo(i?: 0 | 1): IDashboardV2Pool {
+  public getPoolInfo(i?: number): IDashboardV2Pool {
     const stratum = this._info?.stratum;
     if (!this._info || !stratum) return {} as any;
 
@@ -1934,6 +1966,23 @@ private setAxisPadding(cfg: any, persist: boolean = false): void {
       return stratum.pools.find(p => p.active) ?? stratum.pools[0] ?? {} as any;
     }
     return stratum.pools[i] ?? {} as any;
+  }
+
+  /**
+   * Pools that should be rendered on the dashboard.
+   *
+   * In quad mode only configured pools are listed (pools 1/2 may be left empty
+   * in the settings), so the tile does not show empty rows. The pool index is
+   * preserved because the rest of the dashboard indexes into the same arrays.
+   */
+  public getVisiblePools(): { pool: IDashboardV2Pool; idx: number }[] {
+    const pools = this._info?.stratum?.pools ?? [];
+    const entries = pools.map((pool, idx) => ({ pool, idx }));
+
+    if (!this.isQuadPool) return entries;
+
+    const configured = entries.filter((e) => e.idx === 0 || !!e.pool?.host);
+    return configured.length ? configured : entries;
   }
 
   private clearChartHistoryInternal(updateChartNow: boolean): void {
@@ -2076,13 +2125,12 @@ private importHistoricalDataChunked(history: any): void {
   }
 
   getVerifyPoolIdx(idx: number | undefined, usingFallback: boolean | undefined): number {
+    if (this.isQuadPool) return idx ?? 0;
     return (usingFallback && !this.isDualPool) ? 1 : (idx ?? 0);
   }
 
   getPoolVerifyMode(poolIdx: number): number {
-    return poolIdx === 0
-      ? (this._info?.coinbase?.pools[0]?.mode ?? 0)
-      : (this._info?.coinbase?.pools[1]?.mode ?? 0);
+    return this._info?.coinbase?.pools[poolIdx]?.mode ?? 0;
   }
 
   getPoolHonestyPct(bh: IDashboardV2BlockHeader): number | null {

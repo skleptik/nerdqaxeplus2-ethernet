@@ -1,5 +1,6 @@
 #include <limits.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -207,8 +208,8 @@ class MiningInfoV1 : public MiningInfoBase {
 };
 
 // Global mining info instances - one per pool slot
-static MiningInfoV1 s_miningInfoV1[2] = {MiningInfoV1{}, MiningInfoV1{}};
-MiningInfoBase* miningInfo[2] = {&s_miningInfoV1[0], &s_miningInfoV1[1]};
+static MiningInfoV1 s_miningInfoV1[4] = {MiningInfoV1{}, MiningInfoV1{}, MiningInfoV1{}, MiningInfoV1{}};
+MiningInfoBase* miningInfo[4] = {&s_miningInfoV1[0], &s_miningInfoV1[1], &s_miningInfoV1[2], &s_miningInfoV1[3]};
 
 #define min(a, b) ((a < b) ? (a) : (b))
 #define max(a, b) ((a > b) ? (a) : (b))
@@ -308,7 +309,7 @@ void create_jobs_task(void *pvParameters)
         return;
     }
 
-    uint32_t last_ntime[2]{0};
+    uint32_t last_ntime[4]{0};
     uint64_t last_submit_time = 0;
     uint32_t extranonce_2 = 0;
 
@@ -335,7 +336,7 @@ void create_jobs_task(void *pvParameters)
 
         bm_job *next_job = nullptr;
         int active_pool = 0;
-        const char *active_pool_str = "";
+        char active_pool_str[16] = "";
 
         if (!STRATUM_MANAGER) {
             continue;
@@ -343,7 +344,7 @@ void create_jobs_task(void *pvParameters)
 
         // select pool to mine for
         active_pool = STRATUM_MANAGER->getNextActivePool();
-        active_pool_str = active_pool ? "Sec" : "Pri";
+        snprintf(active_pool_str, sizeof(active_pool_str), "P%u", (unsigned) (active_pool + 1));
 
         { // scope for mutex
             PThreadGuard g(current_stratum_job_mutex);

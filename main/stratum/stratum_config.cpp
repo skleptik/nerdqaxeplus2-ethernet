@@ -18,37 +18,27 @@ static bool strEq(const char *a, const char *b)
 
 StratumConfig::StratumConfig(int pool)
 {
-    if (!pool) {
-        m_primary = true;
-        m_host = Config::getStratumURL();
-        m_port = Config::getStratumPortNumber();
-        m_user = Config::getStratumUser();
-        m_password = Config::getStratumPass();
-        m_enonceSub = Config::isStratumEnonceSubscribe();
-        m_tls = Config::isStratumTLS();
-        m_protocol = (StratumProtocol) Config::getStratumProtocol();
-    } else {
-        m_primary = false;
-        m_host = Config::getStratumFallbackURL();
-        m_port = Config::getStratumFallbackPortNumber();
-        m_user = Config::getStratumFallbackUser();
-        m_password = Config::getStratumFallbackPass();
-        m_enonceSub = Config::isStratumFallbackEnonceSubscribe();
-        m_tls = Config::isStratumFallbackTLS();
-        m_protocol = (StratumProtocol) Config::getFallbackStratumProtocol();
-    }
+    m_pool = pool;
+    m_primary = (pool == 0);
+    m_host = Config::getStratumURLAt(pool);
+    m_port = Config::getStratumPortAt(pool);
+    m_user = Config::getStratumUserAt(pool);
+    m_password = Config::getStratumPassAt(pool);
+    m_enonceSub = Config::isStratumEnonceSubscribeAt(pool);
+    m_tls = Config::isStratumTLSAt(pool);
+    m_protocol = (StratumProtocol) Config::getStratumProtocolAt(pool);
 }
 
 bool StratumConfig::reload()
 {
     // Load new values
-    char *newHost = m_primary ? Config::getStratumURL() : Config::getStratumFallbackURL();
-    int newPort   = m_primary ? Config::getStratumPortNumber() : Config::getStratumFallbackPortNumber();
-    char *newUser = m_primary ? Config::getStratumUser() : Config::getStratumFallbackUser();
-    char *newPass = m_primary ? Config::getStratumPass() : Config::getStratumFallbackPass();
-    bool newEnsub = m_primary ? Config::isStratumEnonceSubscribe() : Config::isStratumFallbackEnonceSubscribe();
-    bool newTLS   = m_primary ? Config::isStratumTLS() : Config::isStratumFallbackTLS();
-    StratumProtocol newProto = (StratumProtocol)(m_primary ? Config::getStratumProtocol() : Config::getFallbackStratumProtocol());
+    char *newHost = Config::getStratumURLAt(m_pool);
+    int newPort   = Config::getStratumPortAt(m_pool);
+    char *newUser = Config::getStratumUserAt(m_pool);
+    char *newPass = Config::getStratumPassAt(m_pool);
+    bool newEnsub = Config::isStratumEnonceSubscribeAt(m_pool);
+    bool newTLS   = Config::isStratumTLSAt(m_pool);
+    StratumProtocol newProto = (StratumProtocol) Config::getStratumProtocolAt(m_pool);
     // Compare
     bool same =
         strEq(m_host, newHost) &&
@@ -89,6 +79,7 @@ void StratumConfig::copyInto(StratumConfig *dst)
     safe_free(dst->m_user);
     safe_free(dst->m_password);
 
+    dst->m_pool      = m_pool;
     dst->m_primary   = m_primary;
     dst->m_host      = m_host ? strdup(m_host) : nullptr;
     dst->m_port      = m_port;

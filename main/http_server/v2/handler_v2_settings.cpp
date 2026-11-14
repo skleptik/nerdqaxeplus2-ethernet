@@ -83,48 +83,33 @@ esp_err_t GET_V2_settings(httpd_req_t *req)
     {
         JsonArray pools = doc["pools"].to<JsonArray>();
 
-        // Pool 0 — primary
-        {
+        // Pools 0..3 — primary, fallback, and the two extra quad-pool slots.
+        // The array is always full so the web UI can render four tabs; unused
+        // slots simply carry empty strings / zero values.
+        for (int i = 0; i < StratumManager::MAX_POOLS; i++) {
             JsonObject pool = pools.add<JsonObject>();
-            char *url  = Config::getStratumURL();
-            char *user = Config::getStratumUser();
-            pool["url"]              = url; 
-            pool["port"]             = Config::getStratumPortNumber();
-            pool["user"]             = user;
-            pool["enonceSubscribe"]  = Config::isStratumEnonceSubscribe();
-            pool["tls"]              = Config::isStratumTLS();
-            pool["protocol"]         = Config::getStratumProtocol();
-            char *sv2 = Config::getSV2AuthorityPubkey();
-            pool["sv2AuthorityPubkey"] = sv2;
-            safe_free(sv2);
-            pool["sv2ChannelType"]   = Config::getSV2ChannelType();
-            pool["sv2RequireAuth"]   = Config::isSV2RequireAuth();
-            pool["coinbaseVerifyMode"]  = Config::getCoinbaseVerifyMode(0);
-            pool["coinbaseMaxFee"]      = Config::getCoinbaseMaxFee(0) / 10.0f;
-            pool["coinbaseVerifyForce"] = Config::getCoinbaseVerifyForce(0);
-            free(url);
-            free(user);
-        }
 
-        // Pool 1 — fallback
-        {
-            JsonObject pool = pools.add<JsonObject>();
-            char *url  = Config::getStratumFallbackURL();
-            char *user = Config::getStratumFallbackUser();
-            pool["url"]              = url;
-            pool["port"]             = Config::getStratumFallbackPortNumber();
-            pool["user"]             = user;
-            pool["enonceSubscribe"]  = Config::isStratumFallbackEnonceSubscribe();
-            pool["tls"]              = Config::isStratumFallbackTLS();
-            pool["protocol"]         = Config::getFallbackStratumProtocol();
-            char *sv2 = Config::getFallbackSV2AuthorityPubkey();
+            char *url  = Config::getStratumURLAt(i);
+            char *user = Config::getStratumUserAt(i);
+
+            pool["url"]             = url;
+            pool["port"]            = Config::getStratumPortAt(i);
+            pool["user"]            = user;
+            pool["enonceSubscribe"] = Config::isStratumEnonceSubscribeAt(i);
+            pool["tls"]             = Config::isStratumTLSAt(i);
+            pool["protocol"]        = Config::getStratumProtocolAt(i);
+
+            char *sv2 = Config::getSV2AuthorityPubkeyAt(i);
             pool["sv2AuthorityPubkey"] = sv2;
             safe_free(sv2);
-            pool["sv2ChannelType"]   = Config::getFallbackSV2ChannelType();
-            pool["sv2RequireAuth"]   = Config::isFallbackSV2RequireAuth();
-            pool["coinbaseVerifyMode"]  = Config::getCoinbaseVerifyMode(1);
-            pool["coinbaseMaxFee"]      = Config::getCoinbaseMaxFee(1) / 10.0f;
-            pool["coinbaseVerifyForce"] = Config::getCoinbaseVerifyForce(1);
+
+            pool["sv2ChannelType"]      = Config::getSV2ChannelTypeAt(i);
+            pool["sv2RequireAuth"]      = Config::isSV2RequireAuthAt(i);
+            pool["coinbaseVerifyMode"]  = Config::getCoinbaseVerifyMode(i);
+            pool["coinbaseMaxFee"]      = Config::getCoinbaseMaxFee(i) / 10.0f;
+            pool["coinbaseVerifyForce"] = Config::getCoinbaseVerifyForce(i);
+            pool["weight"]              = Config::getPoolWeight(i);
+
             free(url);
             free(user);
         }
@@ -311,53 +296,46 @@ esp_err_t PATCH_V2_settings(httpd_req_t *req)
         Config::setPoolBalance(doc["poolBalance"].as<uint16_t>());
     }
 
-    bool verifyChanged[2] = {false, false};
+    bool verifyChanged[StratumManager::MAX_POOLS] = {};
 
     if (doc["pools"].is<JsonArray>()) {
         JsonArray pools = doc["pools"].as<JsonArray>();
 
-        for (int i = 0; i < (int)pools.size() && i < 2; i++) {
+        for (int i = 0; i < (int)pools.size() && i < StratumManager::MAX_POOLS; i++) {
             JsonObject pool = pools[i].as<JsonObject>();
 
             if (pool["url"].is<const char*>()) {
-                if (i == 0) Config::setStratumURL(pool["url"].as<const char*>());
-                else        Config::setStratumFallbackURL(pool["url"].as<const char*>());
+                Config::setStratumURLAt(i, pool["url"].as<const char*>());
             }
             if (pool["port"].is<uint16_t>()) {
-                if (i == 0) Config::setStratumPortNumber(pool["port"].as<uint16_t>());
-                else        Config::setStratumFallbackPortNumber(pool["port"].as<uint16_t>());
+                Config::setStratumPortAt(i, pool["port"].as<uint16_t>());
             }
             if (pool["user"].is<const char*>()) {
-                if (i == 0) Config::setStratumUser(pool["user"].as<const char*>());
-                else        Config::setStratumFallbackUser(pool["user"].as<const char*>());
+                Config::setStratumUserAt(i, pool["user"].as<const char*>());
             }
             if (pool["password"].is<const char*>()) {
-                if (i == 0) Config::setStratumPass(pool["password"].as<const char*>());
-                else        Config::setStratumFallbackPass(pool["password"].as<const char*>());
+                Config::setStratumPassAt(i, pool["password"].as<const char*>());
             }
             if (pool["enonceSubscribe"].is<bool>()) {
-                if (i == 0) Config::setStratumEnonceSubscribe(pool["enonceSubscribe"].as<bool>());
-                else        Config::setStratumFallbackEnonceSubscribe(pool["enonceSubscribe"].as<bool>());
+                Config::setStratumEnonceSubscribeAt(i, pool["enonceSubscribe"].as<bool>());
             }
             if (pool["tls"].is<bool>()) {
-                if (i == 0) Config::setStratumTLS(pool["tls"].as<bool>());
-                else        Config::setStratumFallbackTLS(pool["tls"].as<bool>());
+                Config::setStratumTLSAt(i, pool["tls"].as<bool>());
             }
             if (pool["protocol"].is<uint16_t>()) {
-                if (i == 0) Config::setStratumProtocol(pool["protocol"].as<uint16_t>());
-                else        Config::setFallbackStratumProtocol(pool["protocol"].as<uint16_t>());
+                Config::setStratumProtocolAt(i, pool["protocol"].as<uint16_t>());
             }
             if (pool["sv2AuthorityPubkey"].is<const char*>()) {
-                if (i == 0) Config::setSV2AuthorityPubkey(pool["sv2AuthorityPubkey"].as<const char*>());
-                else        Config::setFallbackSV2AuthorityPubkey(pool["sv2AuthorityPubkey"].as<const char*>());
+                Config::setSV2AuthorityPubkeyAt(i, pool["sv2AuthorityPubkey"].as<const char*>());
             }
             if (pool["sv2ChannelType"].is<uint16_t>()) {
-                if (i == 0) Config::setSV2ChannelType(pool["sv2ChannelType"].as<uint16_t>());
-                else        Config::setFallbackSV2ChannelType(pool["sv2ChannelType"].as<uint16_t>());
+                Config::setSV2ChannelTypeAt(i, pool["sv2ChannelType"].as<uint16_t>());
             }
             if (pool["sv2RequireAuth"].is<bool>()) {
-                if (i == 0) Config::setSV2RequireAuth(pool["sv2RequireAuth"].as<bool>());
-                else        Config::setFallbackSV2RequireAuth(pool["sv2RequireAuth"].as<bool>());
+                Config::setSV2RequireAuthAt(i, pool["sv2RequireAuth"].as<bool>());
+            }
+            if (pool["weight"].is<uint16_t>()) {
+                Config::setPoolWeight(i, pool["weight"].as<uint16_t>());
             }
 
             // Coinbase verification
@@ -377,17 +355,35 @@ esp_err_t PATCH_V2_settings(httpd_req_t *req)
         }
     }
 
+    // Optional flat weight array (mirrors the GET per-pool weight field)
+    if (doc["poolWeights"].is<JsonArray>()) {
+        JsonArray weights = doc["poolWeights"].as<JsonArray>();
+        for (int i = 0; i < (int)weights.size() && i < StratumManager::MAX_POOLS; i++) {
+            if (weights[i].is<uint16_t>()) {
+                Config::setPoolWeight(i, weights[i].as<uint16_t>());
+            }
+        }
+    }
+
     // Re-run verification for changed pools
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < StratumManager::MAX_POOLS; i++) {
         if (verifyChanged[i]) {
             STRATUM_MANAGER->clearVerifyBlocked(i);
             STRATUM_MANAGER->resetVerificationStats(i);
         }
         STRATUM_MANAGER->rerunVerification(i);
     }
-    if (SYSTEM_MODULE.getBoardError() == Board::Error::COINBASE_VERIFY_FAULT &&
-        !STRATUM_MANAGER->isVerifyBlocked(0) && !STRATUM_MANAGER->isVerifyBlocked(1)) {
-        SYSTEM_MODULE.clearBoardError();
+    if (SYSTEM_MODULE.getBoardError() == Board::Error::COINBASE_VERIFY_FAULT) {
+        bool anyBlocked = false;
+        for (int i = 0; i < StratumManager::MAX_POOLS; i++) {
+            if (STRATUM_MANAGER->isVerifyBlocked(i)) {
+                anyBlocked = true;
+                break;
+            }
+        }
+        if (!anyBlocked) {
+            SYSTEM_MODULE.clearBoardError();
+        }
     }
 
     doc.clear();

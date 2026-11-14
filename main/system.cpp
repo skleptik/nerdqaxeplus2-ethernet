@@ -305,8 +305,9 @@ void System::task() {
             hideError();
         }
 
-        // toggle
-        toggle = 1-toggle;
+        // toggle between pool pages: 2 pages in failover/dual, 4 in quad mode
+        int numPoolPages = (STRATUM_MANAGER && STRATUM_MANAGER->isQuadPool()) ? StratumManager::MAX_POOLS : 2;
+        toggle = (toggle + 1) % numPoolPages;
 
         m_display->updateGlobalState(toggle);
         m_display->updateCurrentSettings(toggle);

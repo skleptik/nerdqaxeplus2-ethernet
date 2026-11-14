@@ -24,6 +24,8 @@ class StratumManager {
     friend StratumTaskV2;
     friend PingTask;
   public:
+    static constexpr int MAX_POOLS = 4;
+
     enum Selected
     {
         PRIMARY = 0,
@@ -33,7 +35,8 @@ class StratumManager {
     enum PoolMode
     {
         FAILOVER = 0,
-        DUAL = 1
+        DUAL = 1,
+        QUAD = 2
     };
 
   protected:
@@ -45,9 +48,9 @@ class StratumManager {
     PoolMode m_poolmode;                                 // default FAILOVER
     uint64_t m_lastSubmitResponseTimestamp = 0;              ///< Timestamp of last submitted share response
 
-    StratumTaskBase *m_stratumTasks[2]{};                    ///< Primary and secondary Stratum tasks
-    PingTask *m_pingTasks[2]{};
-    StratumConfig *m_stratumConfig[2]{};
+    StratumTaskBase *m_stratumTasks[MAX_POOLS]{};            ///< Stratum tasks (pools 0..MAX_POOLS-1)
+    PingTask *m_pingTasks[MAX_POOLS]{};
+    StratumConfig *m_stratumConfig[MAX_POOLS]{};
 
     uint32_t m_totalFoundBlocks = 0;
     uint32_t m_foundBlocks = 0;
@@ -60,16 +63,22 @@ class StratumManager {
     bool m_initialized = false;
 
     // Coinbase decoder: extranonce state per pool + decoded result + verification
-    char *m_extranonce1[2]{};
-    int m_extranonce2_len[2]{};
-    coinbase_result_t m_coinbaseResult[2]{};
-    bool m_verificationOk[2]{};
-    uint32_t m_verificationFailCount[2]{};
-    uint32_t m_verificationCheckCount[2]{};
+    char *m_extranonce1[MAX_POOLS]{};
+    int m_extranonce2_len[MAX_POOLS]{};
+    coinbase_result_t m_coinbaseResult[MAX_POOLS]{};
+    bool m_verificationOk[MAX_POOLS]{};
+    uint32_t m_verificationFailCount[MAX_POOLS]{};
+    uint32_t m_verificationCheckCount[MAX_POOLS]{};
     // "" = not blocked, "address_not_found", "fee_exceeded"
-    const char *m_verifyBlockedReason[2]{nullptr, nullptr};
+    const char *m_verifyBlockedReason[MAX_POOLS]{};
+
+    // Number of pools the concrete mode actually uses. Failover/dual use 2,
+    // quad uses 4. The extra configs are still allocated so switching modes
+    // at runtime never leaves dangling slots.
+    virtual int getNumPools() const { return 2; }
 
     void processCoinbase(int pool, const mining_notify *notify);
+
     void processCoinbase(int pool, const char *coinbase_1_hex, const char *coinbase_2_hex,
                          uint32_t version, uint32_t nbits,
                          const char *extranonce1_hex, int extranonce2_len);
@@ -145,6 +154,7 @@ class StratumManager {
     void reconnectAll();
 
     virtual bool isDualPool() const { return false; }
+    virtual bool isQuadPool() const { return false; }
     virtual bool isFallback() const { return false; }
 
     // verbose=false emits the slim legacy shape used by the v1 /api/system/info
@@ -207,46 +217,46 @@ class StratumManager {
 
     coinbase_result_t getCoinbaseResult(int pool) {
         PThreadGuard lock(m_mutex);
-        return m_coinbaseResult[pool & 1];
+        return m_coinbaseResult[pool & (MAX_POOLS - 1)];
     }
 
     void setCoinbaseResult(int pool, const coinbase_result_t &result) {
         PThreadGuard lock(m_mutex);
-        m_coinbaseResult[pool & 1] = result;
-        runVerification(pool & 1);
+        m_coinbaseResult[pool & (MAX_POOLS - 1)] = result;
+        runVerification(pool & (MAX_POOLS - 1));
     }
 
     bool getVerificationOk(int pool) {
         PThreadGuard lock(m_mutex);
-        return m_verificationOk[pool & 1];
+        return m_verificationOk[pool & (MAX_POOLS - 1)];
     }
 
     uint32_t getVerificationFailCount(int pool) {
         PThreadGuard lock(m_mutex);
-        return m_verificationFailCount[pool & 1];
+        return m_verificationFailCount[pool & (MAX_POOLS - 1)];
     }
 
     uint32_t getVerificationCheckCount(int pool) {
         PThreadGuard lock(m_mutex);
-        return m_verificationCheckCount[pool & 1];
+        return m_verificationCheckCount[pool & (MAX_POOLS - 1)];
     }
 
     void rerunVerification(int pool) {
         PThreadGuard lock(m_mutex);
-        runVerification(pool & 1);
+        runVerification(pool & (MAX_POOLS - 1));
     }
 
     void resetVerificationStats(int pool) {
         PThreadGuard lock(m_mutex);
-        m_verificationCheckCount[pool & 1] = 0;
-        m_verificationFailCount[pool & 1] = 0;
+        m_verificationCheckCount[pool & (MAX_POOLS - 1)] = 0;
+        m_verificationFailCount[pool & (MAX_POOLS - 1)] = 0;
     }
 
-    bool isVerifyBlocked(int pool) const { return m_verifyBlockedReason[pool & 1] != nullptr; }
-    const char *getVerifyBlockedReason(int pool) const { return m_verifyBlockedReason[pool & 1]; }
+    bool isVerifyBlocked(int pool) const { return m_verifyBlockedReason[pool & (MAX_POOLS - 1)] != nullptr; }
+    const char *getVerifyBlockedReason(int pool) const { return m_verifyBlockedReason[pool & (MAX_POOLS - 1)]; }
 
     void clearVerifyBlocked(int pool) {
-        m_verifyBlockedReason[pool & 1] = nullptr;
+        m_verifyBlockedReason[pool & (MAX_POOLS - 1)] = nullptr;
     }
 
     virtual int getCompatPingPoolIndex() = 0;

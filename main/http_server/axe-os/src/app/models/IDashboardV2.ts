@@ -66,6 +66,7 @@ export interface IDashboardV2Pool {
     poolDifficulty: number;
     networkDifficulty?: number;
     poolDiffErr?: boolean;
+    weight?: number;        // quad-pool mode: relative share of jobs
 }
 
 export interface IDashboardV2Stratum {

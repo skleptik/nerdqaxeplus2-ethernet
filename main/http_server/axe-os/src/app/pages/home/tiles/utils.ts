@@ -466,6 +466,7 @@ export type HomeTileDerivedFlags = {
   currentInputBarMaxWanted: boolean;
   vrTempBarCritWanted: boolean;
   isDualPool: boolean;
+  isQuadPool: boolean;
   hasChipTemps: boolean;
 };
 
@@ -601,6 +602,7 @@ export function normalizeHomeTileInfo(
       currentInputBarMaxWanted: false,
       vrTempBarCritWanted: false,
       isDualPool: false,
+      isQuadPool: false,
       hasChipTemps: false,
     };
   }
@@ -634,7 +636,9 @@ export function normalizeHomeTileInfo(
   const vrTempLimits = args.vrTempLimits ?? (BAR_LIMITS as any).vrTemp;
   const vrTempBarCritWanted = computeVrTempBarCritWanted(info, vrTempLimits);
 
-  const isDualPool = Number(info?.stratum?.activePoolMode ?? 0) === 1;
+  const activePoolMode = Number(info?.stratum?.activePoolMode ?? 0);
+  const isDualPool = activePoolMode === 1;
+  const isQuadPool = activePoolMode === 2;
 
   const chipTemps = info?.thermal?.asicTemps ?? [];
   const hasChipTemps =
@@ -642,7 +646,7 @@ export function normalizeHomeTileInfo(
     chipTemps.length > 0 &&
     chipTemps.some((v: any) => v != null && !Number.isNaN(Number(v)) && Number(v) !== 0);
 
-  return { currentInputBarMaxWanted, vrTempBarCritWanted, isDualPool, hasChipTemps };
+  return { currentInputBarMaxWanted, vrTempBarCritWanted, isDualPool, isQuadPool, hasChipTemps };
 }
 
 // -----------------------------------------------------------------------------

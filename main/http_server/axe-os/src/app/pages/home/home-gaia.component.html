@@ -16,6 +16,16 @@
         [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-1'"
         [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
         aria-hidden="true">{{ getPoolVerificationTooltip(1) }}</span>
+  @if (isQuadPool) {
+    <span class="power-bar-tooltip pool-verify-tooltip"
+          [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-2'"
+          [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
+          aria-hidden="true">{{ getPoolVerificationTooltip(2) }}</span>
+    <span class="power-bar-tooltip pool-verify-tooltip"
+          [class.power-bar-tooltip--active]="activeHoverTooltipId === 'pool-verify-3'"
+          [style.left.px]="poolVerifyTooltipX" [style.top.px]="poolVerifyTooltipY"
+          aria-hidden="true">{{ getPoolVerificationTooltip(3) }}</span>
+  }
   <div *ngIf="info$ | async as info; else loading">
   <div *ngIf="!info.system.shutdown; else shutdown">
       <!-- GAIA-ONLY top summary cards (NEROQ+ style: icon-left, colored, progress) -->
@@ -197,7 +207,11 @@
             <div class="nerd-pool__id">
               <a class="nerd-pool__host" [href]="getQuickLink(pool?.host, pool?.user)" target="_blank">{{ pool?.host }}<span class="nerd-pool__port">:{{ pool?.port }}</span></a>
               <span class="nerd-pool__meta">
-                {{ (fallback ? 'POOL_INFO.FALLBACK' : 'POOL_INFO.PRIMARY') | translate }}
+                @if (isDualPool || isQuadPool) {
+                  Pool {{ (idx ?? 0) + 1 }}
+                } @else {
+                  {{ (fallback ? 'POOL_INFO.FALLBACK' : 'POOL_INFO.PRIMARY') | translate }}
+                }
                 · {{ pool?.activeProtocol === 1 ? 'SV2' : 'SV1' }}<nb-icon *ngIf="pool?.encrypted" icon="lock-outline" title="Encrypted"></nb-icon>
               </span>
             </div>
@@ -225,7 +239,7 @@
               <span class="nerd-pool__stat-value">{{ pool?.pingLoss != null ? ((pool.pingLoss * 100) | number:'1.0-0') : 'n/a' }}<span class="u" *ngIf="pool?.pingLoss != null">%</span></span>
               <span class="nerd-pool__stat-label">{{ 'POOL_INFO.LOSS' | translate }}</span>
             </div>
-            <div class="nerd-pool__stat" *ngIf="isDualPool">
+            <div class="nerd-pool__stat" *ngIf="isDualPool || isQuadPool">
               <span class="nerd-pool__stat-value">{{ getActiveBalance(idx ?? 0) | number:'1.0-0' }}<span class="u">%</span></span>
               <span class="nerd-pool__stat-label">Alloc</span>
             </div>
@@ -272,11 +286,16 @@
               <nb-icon icon="edit-2-outline"></nb-icon>
             </a>
           </div>
-          <ng-container [ngTemplateOutlet]="gaiaPool" [ngTemplateOutletContext]="{ pool: (isDualPool ? getPoolInfo(0) : getPoolInfo()), idx: (isDualPool ? 0 : undefined), fallback: info.stratum?.usingFallback }"></ng-container>
-          <ng-container *ngIf="isDualPool">
-            <div class="nerd-pool-sep"></div>
-            <ng-container [ngTemplateOutlet]="gaiaPool" [ngTemplateOutletContext]="{ pool: getPoolInfo(1), idx: 1, fallback: false }"></ng-container>
-          </ng-container>
+          @if (isDualPool || isQuadPool) {
+            @for (entry of getVisiblePools(); track entry.idx) {
+              @if (!$first) {
+                <div class="nerd-pool-sep"></div>
+              }
+              <ng-container [ngTemplateOutlet]="gaiaPool" [ngTemplateOutletContext]="{ pool: entry.pool, idx: entry.idx, fallback: false }"></ng-container>
+            }
+          } @else {
+            <ng-container [ngTemplateOutlet]="gaiaPool" [ngTemplateOutletContext]="{ pool: getPoolInfo(), idx: undefined, fallback: info.stratum?.usingFallback }"></ng-container>
+          }
         </div>
 
         <!-- Power -->

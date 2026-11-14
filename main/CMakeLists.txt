@@ -76,6 +76,7 @@ SRCS
     "./stratum/stratum_manager.cpp"
     "./stratum/stratum_manager_fallback.cpp"
     "./stratum/stratum_manager_dual_pool.cpp"
+    "./stratum/stratum_manager_quad_pool.cpp"
     "./stratum/stratum_transport_noise.cpp"
     "./stratum/stratum_task_v2.cpp"
     "./network/connect.cpp"

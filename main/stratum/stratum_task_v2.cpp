@@ -58,9 +58,8 @@ StratumTransport *StratumTaskV2::selectTransport()
 
     // Whether this pool requires the server certificate to be verified. Defaults to
     // false so existing configs keep today's connect-unauthenticated behavior.
-    bool require_auth = m_config->isPrimary()
-        ? Config::isSV2RequireAuth()
-        : Config::isFallbackSV2RequireAuth();
+    // Use the per-pool setting (pools 2/3 have their own NVS keys in quad mode)
+    bool require_auth = Config::isSV2RequireAuthAt(m_config->getPool());
     m_noiseTransport.setRequireAuth(require_auth);
 
     return &m_noiseTransport;
@@ -68,9 +67,8 @@ StratumTransport *StratumTaskV2::selectTransport()
 
 bool StratumTaskV2::loadAuthorityPubkey(uint8_t out[32])
 {
-    char *b58_key = m_config->isPrimary()
-        ? Config::getSV2AuthorityPubkey()
-        : Config::getFallbackSV2AuthorityPubkey();
+    // Use the per-pool setting (pools 2/3 have their own NVS keys in quad mode)
+    char *b58_key = Config::getSV2AuthorityPubkeyAt(m_config->getPool());
 
     if (!b58_key || strlen(b58_key) == 0) {
         safe_free(b58_key);
@@ -116,9 +114,7 @@ void StratumTaskV2::protocolLoop()
 {
     // Extended Channel only for now - Standard Channel support disabled
     // To re-enable, uncomment the config read below:
-    // uint16_t chan_cfg = m_config->isPrimary()
-    //     ? Config::getSV2ChannelType()
-    //     : Config::getFallbackSV2ChannelType();
+    // uint16_t chan_cfg = Config::getSV2ChannelTypeAt(m_config->getPool());
     // m_channelType = (chan_cfg == 1) ? SV2_CHANNEL_STANDARD : SV2_CHANNEL_EXTENDED;
     m_channelType = SV2_CHANNEL_EXTENDED;
 

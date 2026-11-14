@@ -864,6 +864,13 @@ void DisplayDriver::updateHashrate(System *module, StratumManager* manager, floa
         lv_label_set_text(m_ui->ui_lbHashrateSet, strDataActive); // Update hashrate
     }
 
+    if (manager && manager->isQuadPool()) {
+        auto *m = static_cast<StratumManagerQuadPool*>(manager);
+        float activeHashrate = m->getActivePoolHashrate(pool);
+        formatHashrate(strDataActive, sizeof(strDataActive), activeHashrate);
+        lv_label_set_text(m_ui->ui_lbHashrateSet, strDataActive); // Update hashrate
+    }
+
     if (manager && manager->isFallback()) {
         lv_label_set_text(m_ui->ui_lbHashrateSet, strData); // Update hashrate
     }
@@ -885,6 +892,12 @@ void DisplayDriver::updateShares(StratumManager *manager, int pool)
 
     if (manager->isDualPool()) {
         auto *manager = static_cast<StratumManagerDualPool*>(STRATUM_MANAGER);
+        snprintf(strData, sizeof(strData), "%lld/%lld", manager->getSharesAccepted(pool), manager->getSharesRejected(pool));
+        lv_label_set_text(m_ui->ui_lbShares, strData); // Update shares
+    }
+
+    if (manager->isQuadPool()) {
+        auto *manager = static_cast<StratumManagerQuadPool*>(STRATUM_MANAGER);
         snprintf(strData, sizeof(strData), "%lld/%lld", manager->getSharesAccepted(pool), manager->getSharesRejected(pool));
         lv_label_set_text(m_ui->ui_lbShares, strData); // Update shares
     }
@@ -927,6 +940,16 @@ void DisplayDriver::updateCurrentSettings(int pool)
 
     if (STRATUM_MANAGER->isDualPool()) {
         auto *manager = static_cast<StratumManagerDualPool*>(STRATUM_MANAGER);
+        snprintf(strData, sizeof(strData), "%s", manager->getPoolHost(pool));
+        lv_label_set_text(m_ui->ui_lbPoolSet, strData); // Update label
+        snprintf(strData, sizeof(strData), "%d", manager->getPoolPort(pool));
+        lv_label_set_text(m_ui->ui_lbPortSet, strData); // Update label
+        snprintf(strData, sizeof(strData), "%d", pool + 1);
+        lv_label_set_text(m_ui->ui_lbPoolNr, strData);
+    }
+
+    if (STRATUM_MANAGER->isQuadPool()) {
+        auto *manager = static_cast<StratumManagerQuadPool*>(STRATUM_MANAGER);
         snprintf(strData, sizeof(strData), "%s", manager->getPoolHost(pool));
         lv_label_set_text(m_ui->ui_lbPoolSet, strData); // Update label
         snprintf(strData, sizeof(strData), "%d", manager->getPoolPort(pool));

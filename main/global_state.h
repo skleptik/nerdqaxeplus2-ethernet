@@ -11,6 +11,7 @@
 #include "tasks/power_management_task.h"
 #include "stratum/stratum_manager.h"
 #include "stratum/stratum_manager_dual_pool.h"
+#include "stratum/stratum_manager_quad_pool.h"
 #include "stratum/stratum_manager_fallback.h"
 #include "tasks/apis_task.h"
 #include "network/network_manager.h"

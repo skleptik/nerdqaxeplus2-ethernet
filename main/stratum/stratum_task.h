@@ -13,6 +13,7 @@
 class StratumManager;
 class StratumManagerFallback;
 class StratumManagerDualPool;
+class StratumManagerQuadPool;
 
 
 /**
@@ -25,6 +26,7 @@ class StratumTaskBase {
     friend StratumManager;
     friend StratumManagerFallback;
     friend StratumManagerDualPool;
+    friend StratumManagerQuadPool;
 
   protected:
     StratumManager *m_manager = nullptr; ///< Reference to the StratumManager

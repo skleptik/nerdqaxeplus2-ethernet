@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -31,11 +32,10 @@
 // ------------  stratum manager
 StratumManager::StratumManager(PoolMode poolmode) : m_poolmode(poolmode)
 {
-    m_stratumTasks[0] = nullptr;
-    m_stratumTasks[1] = nullptr;
-
-    m_stratumConfig[0] = new StratumConfig(0);
-    m_stratumConfig[1] = new StratumConfig(1);
+    for (int i = 0; i < MAX_POOLS; i++) {
+        m_stratumTasks[i] = nullptr;
+        m_stratumConfig[i] = new StratumConfig(i);
+    }
 
     suffixString(0, m_totalBestDiffString, DIFF_STRING_SIZE, 0);
     suffixString(0, m_bestSessionDiffString, DIFF_STRING_SIZE, 0);
@@ -58,12 +58,21 @@ bool StratumManager::isConnected(int index)
 
 bool StratumManager::isAnyConnected()
 {
-    return isConnected(PRIMARY) || isConnected(SECONDARY);
+    for (int i = 0; i < getNumPools(); i++) {
+        if (isConnected(i)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int StratumManager::getNumConnectedPools()
 {
-    return !!isConnected(PRIMARY) + !!isConnected(SECONDARY);
+    int count = 0;
+    for (int i = 0; i < getNumPools(); i++) {
+        count += !!isConnected(i);
+    }
+    return count;
 }
 
 // This static wrapper converts the void* parameter into a StratumManager pointer
@@ -91,22 +100,29 @@ void StratumManager::task()
         ESP_LOGE("StratumManager", "Failed to add task to watchdog!");
     }
 
-    ESP_LOGI("StratumManager", "%s mode enabled", m_poolmode == PoolMode::DUAL ? "Dual Pool" : "Failover");
+    const char *modeName = m_poolmode == PoolMode::QUAD ? "Quad Pool"
+                         : m_poolmode == PoolMode::DUAL ? "Dual Pool" : "Failover";
+    ESP_LOGI("StratumManager", "%s mode enabled", modeName);
 
-    // Create the Stratum tasks for both pools
-    for (int i = 0; i < 2; i++) {
+    // Create the Stratum tasks for every pool this mode uses
+    const int numPools = getNumPools();
+    for (int i = 0; i < numPools; i++) {
         m_stratumTasks[i] = createTask(i);
-        xTaskCreatePSRAM(m_stratumTasks[i]->taskWrapper, (i == 0) ? "stratum task (pri)" : "stratum task (sec)", 8192,
+        char taskName[24];
+        snprintf(taskName, sizeof(taskName), "stratum task (p%d)", i);
+        xTaskCreatePSRAM(m_stratumTasks[i]->taskWrapper, taskName, 8192,
                          (void *) m_stratumTasks[i], 5, NULL);
 
         m_pingTasks[i] = new PingTask(this, i);
-        xTaskCreatePSRAM(m_pingTasks[i]->ping_task_wrapper, (i == 0) ? "ping task (pri)" : "ping task (sec)", 4096,
+        snprintf(taskName, sizeof(taskName), "ping task (p%d)", i);
+        xTaskCreatePSRAM(m_pingTasks[i]->ping_task_wrapper, taskName, 4096,
                          (void *) m_pingTasks[i], 1, NULL);
     }
 
-    if (m_poolmode == PoolMode::DUAL) {
-        connect(PRIMARY);
-        connect(SECONDARY);
+    if (m_poolmode == PoolMode::DUAL || m_poolmode == PoolMode::QUAD) {
+        for (int i = 0; i < numPools; i++) {
+            connect(i);
+        }
     } else {
         connect(PRIMARY);
     }
@@ -291,10 +307,14 @@ void StratumManager::loadSettings(bool reconnect)
     suffixString(m_totalBestDiff, m_totalBestDiffString, DIFF_STRING_SIZE, 0);
 
     // init with the reconnect flag from the child class
-    bool requiresReconnect[2] = {reconnect, reconnect};
+    bool requiresReconnect[MAX_POOLS] = {};
+    for (int i = 0; i < MAX_POOLS; i++) {
+        requiresReconnect[i] = reconnect;
+    }
 
     // load and compare config
-    for (int i=0; i<2; i++) {
+    const int numPools = getNumPools();
+    for (int i = 0; i < numPools; i++) {
         bool changed = m_stratumConfig[i]->reload();
         if (changed) {
             requiresReconnect[i] = true;
@@ -302,7 +322,7 @@ void StratumManager::loadSettings(bool reconnect)
     }
 
     // reconnect the pools with changed configs
-    for (int i=0;i<2;i++) {
+    for (int i = 0; i < numPools; i++) {
         if (!requiresReconnect[i]) {
             continue;
         }
@@ -330,7 +350,7 @@ void StratumManager::loadSettings(bool reconnect)
 }
 
 void StratumManager::reconnectAll() {
-    for (int i=0;i<2;i++) {
+    for (int i = 0; i < getNumPools(); i++) {
         // trigger a reconnect
         if (m_stratumTasks[i]) {
             m_stratumTasks[i]->triggerReconnect();
@@ -402,6 +422,61 @@ void StratumManager::saveSettings(const JsonDocument &doc) {
     if (doc["fallbackSv2ChannelType"].is<uint16_t>()) {
         Config::setFallbackSV2ChannelType(doc["fallbackSv2ChannelType"].as<uint16_t>());
     }
+
+    // Pools 2/3 (quad-pool mode) — flat keys kept in sync with the v2 pools[] API
+    if (doc["stratumP2URL"].is<const char*>()) {
+        Config::setStratumURLAt(2, doc["stratumP2URL"].as<const char*>());
+    }
+    if (doc["stratumP2User"].is<const char*>()) {
+        Config::setStratumUserAt(2, doc["stratumP2User"].as<const char*>());
+    }
+    if (doc["stratumP2Password"].is<const char*>()) {
+        Config::setStratumPassAt(2, doc["stratumP2Password"].as<const char*>());
+    }
+    if (doc["stratumP2Port"].is<uint16_t>()) {
+        Config::setStratumPortAt(2, doc["stratumP2Port"].as<uint16_t>());
+    }
+    if (doc["stratumP2EnonceSubscribe"].is<bool>()) {
+        Config::setStratumEnonceSubscribeAt(2, doc["stratumP2EnonceSubscribe"].as<bool>());
+    }
+    if (doc["stratumP2TLS"].is<bool>()) {
+        Config::setStratumTLSAt(2, doc["stratumP2TLS"].as<bool>());
+    }
+    if (doc["stratumP2Protocol"].is<uint16_t>()) {
+        Config::setStratumProtocolAt(2, doc["stratumP2Protocol"].as<uint16_t>());
+    }
+    if (doc["stratumP3URL"].is<const char*>()) {
+        Config::setStratumURLAt(3, doc["stratumP3URL"].as<const char*>());
+    }
+    if (doc["stratumP3User"].is<const char*>()) {
+        Config::setStratumUserAt(3, doc["stratumP3User"].as<const char*>());
+    }
+    if (doc["stratumP3Password"].is<const char*>()) {
+        Config::setStratumPassAt(3, doc["stratumP3Password"].as<const char*>());
+    }
+    if (doc["stratumP3Port"].is<uint16_t>()) {
+        Config::setStratumPortAt(3, doc["stratumP3Port"].as<uint16_t>());
+    }
+    if (doc["stratumP3EnonceSubscribe"].is<bool>()) {
+        Config::setStratumEnonceSubscribeAt(3, doc["stratumP3EnonceSubscribe"].as<bool>());
+    }
+    if (doc["stratumP3TLS"].is<bool>()) {
+        Config::setStratumTLSAt(3, doc["stratumP3TLS"].as<bool>());
+    }
+    if (doc["stratumP3Protocol"].is<uint16_t>()) {
+        Config::setStratumProtocolAt(3, doc["stratumP3Protocol"].as<uint16_t>());
+    }
+
+    // Per-pool weights for quad mode. doc is const, so JsonVariantConst only
+    // supports the read-only JsonArrayConst conversion (ArduinoJson 7).
+    if (doc["poolWeights"].is<JsonArrayConst>()) {
+        JsonArrayConst weights = doc["poolWeights"].as<JsonArrayConst>();
+        for (int i = 0; i < (int) weights.size() && i < MAX_POOLS; i++) {
+            if (weights[i].is<uint16_t>()) {
+                Config::setPoolWeight(i, weights[i].as<uint16_t>());
+            }
+        }
+    }
 }
 
 void StratumManager::resetAllTimeStats()
@@ -433,7 +508,7 @@ void StratumManager::checkForBestDiff(int pool, double diff, uint32_t nbits)
 
 void StratumManager::storeExtranonce(int pool, const char *extranonce, int extranonce2_len)
 {
-    if (pool < 0 || pool > 1) return;
+    if (pool < 0 || pool >= MAX_POOLS) return;
     free(m_extranonce1[pool]);
     m_extranonce1[pool] = extranonce ? strdup(extranonce) : nullptr;
     m_extranonce2_len[pool] = extranonce2_len;
@@ -454,7 +529,7 @@ static void extractUserAddress(const char *user, char *out, size_t out_len)
 void StratumManager::processCoinbase(int pool, const mining_notify *notify)
 {
     if (!notify || !notify->coinbase_1 || !notify->coinbase_2) return;
-    if (pool < 0 || pool > 1 || !m_extranonce1[pool]) return;
+    if (pool < 0 || pool >= MAX_POOLS || !m_extranonce1[pool]) return;
     // SV2 pools use the hex-string overload via enqueueExtendedJob — skip V1 path
     if (m_stratumConfig[pool] && m_stratumConfig[pool]->isSV2()) return;
 
@@ -481,8 +556,8 @@ void StratumManager::processCoinbase(int pool, const mining_notify *notify)
                  (unsigned long long)result.user_value_satoshis,
                  user_address);
 */
-        m_coinbaseResult[pool & 1] = result;
-        runVerification(pool & 1);
+        m_coinbaseResult[pool] = result;
+        runVerification(pool);
     } else {
         ESP_LOGE("stratum_manager", "SV2 coinbase parse failed");
     }
@@ -493,7 +568,7 @@ void StratumManager::processCoinbase(int pool, const char *coinbase_1_hex, const
                                      const char *extranonce1_hex, int extranonce2_len)
 {
     if (!coinbase_1_hex || !coinbase_2_hex || !extranonce1_hex) return;
-    if (pool < 0 || pool > 1) return;
+    if (pool < 0 || pool >= MAX_POOLS) return;
 
     char user_address[128] = {};
     const char *user = m_stratumConfig[pool] ? m_stratumConfig[pool]->getUser() : nullptr;
@@ -519,8 +594,8 @@ void StratumManager::processCoinbase(int pool, const char *coinbase_1_hex, const
                  (unsigned long long)result.user_value_satoshis,
                  user_address);
 */
-        m_coinbaseResult[pool & 1] = result;
-        runVerification(pool & 1);
+        m_coinbaseResult[pool] = result;
+        runVerification(pool);
     } else {
         ESP_LOGE("stratum_manager", "SV2 coinbase parse failed");
     }
@@ -528,6 +603,8 @@ void StratumManager::processCoinbase(int pool, const char *coinbase_1_hex, const
 
 void StratumManager::runVerification(int pool)
 {
+    if (pool < 0 || pool >= MAX_POOLS) return;
+
     const coinbase_result_t &cb = m_coinbaseResult[pool];
 
     uint16_t mode = Config::getCoinbaseVerifyMode(pool);
@@ -577,7 +654,7 @@ void StratumManager::runVerification(int pool)
         // next block; no work will be submitted to a blocked pool.
         // (an unconfigured pool has no host and must not count as "usable")
         bool anyUsable = false;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < getNumPools(); i++) {
             bool configured = m_stratumConfig[i] && strlen(m_stratumConfig[i]->getHost()) > 0;
             if (configured && !isVerifyBlocked(i)) { anyUsable = true; break; }
         }

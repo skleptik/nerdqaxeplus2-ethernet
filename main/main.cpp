@@ -39,6 +39,7 @@
 #include "serial.h"
 #include "stratum/stratum_manager_fallback.h"
 #include "stratum/stratum_manager_dual_pool.h"
+#include "stratum/stratum_manager_quad_pool.h"
 #include "system.h"
 #include "wifi_health.h"
 #include "can_task.h"
@@ -178,6 +179,8 @@ StratumManager* newStratumManager() {
         return new StratumManagerFallback();
     case 1:
         return new StratumManagerDualPool();
+    case 2:
+        return new StratumManagerQuadPool();
     default:
         ESP_LOGE(TAG, "invalid pool mode %d", (int) mode);
         return nullptr;

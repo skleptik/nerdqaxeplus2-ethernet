@@ -15,6 +15,7 @@ enum StratumProtocol {
 
 class StratumConfig {
   protected:
+    int m_pool = 0;
     bool m_primary = false;
     char *m_host = nullptr;
     int m_port = 0;
@@ -40,6 +41,11 @@ class StratumConfig {
     bool isPrimary()
     {
         return m_primary;
+    }
+
+    int getPool() const
+    {
+        return m_pool;
     }
 
     const char *getHost()

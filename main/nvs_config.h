@@ -20,6 +20,19 @@
 #define NVS_CONFIG_STRATUM_FALLBACK_PASS "fbstratumpass"
 #define NVS_CONFIG_STRATUM_FALLBACK_ENONCE_SUB "fbstratumesub"
 #define NVS_CONFIG_STRATUM_FALLBACK_TLS "fbstratumtls"
+// Third and fourth pool (quad-pool mode). NVS keys are limited to 15 chars.
+#define NVS_CONFIG_STRATUM_P2_URL "stratum_p2_url"
+#define NVS_CONFIG_STRATUM_P2_PORT "stratum_p2_port"
+#define NVS_CONFIG_STRATUM_P2_USER "stratum_p2_user"
+#define NVS_CONFIG_STRATUM_P2_PASS "stratum_p2_pass"
+#define NVS_CONFIG_STRATUM_P2_ENONCE_SUB "stratum_p2_esub"
+#define NVS_CONFIG_STRATUM_P2_TLS "stratum_p2_tls"
+#define NVS_CONFIG_STRATUM_P3_URL "stratum_p3_url"
+#define NVS_CONFIG_STRATUM_P3_PORT "stratum_p3_port"
+#define NVS_CONFIG_STRATUM_P3_USER "stratum_p3_user"
+#define NVS_CONFIG_STRATUM_P3_PASS "stratum_p3_pass"
+#define NVS_CONFIG_STRATUM_P3_ENONCE_SUB "stratum_p3_esub"
+#define NVS_CONFIG_STRATUM_P3_TLS "stratum_p3_tls"
 #define NVS_CONFIG_STRATUM_DIFFICULTY "stratumdiff"
 #define NVS_CONFIG_STRATUM_KEEPALIVE "stratum_keep"
 
@@ -91,6 +104,12 @@
 #define NVS_CONFIG_FB_COINBASE_VERIFY_MODE "fb_cb_vfy_mode"
 #define NVS_CONFIG_FB_COINBASE_MAX_FEE     "fb_cb_max_fee"
 #define NVS_CONFIG_FB_COINBASE_VERIFY_FORCE "fb_cb_vfy_frc"
+#define NVS_CONFIG_P2_COINBASE_VERIFY_MODE "cb_p2_vfy_mode"
+#define NVS_CONFIG_P2_COINBASE_MAX_FEE     "cb_p2_max_fee"
+#define NVS_CONFIG_P2_COINBASE_VERIFY_FORCE "cb_p2_vfy_frc"
+#define NVS_CONFIG_P3_COINBASE_VERIFY_MODE "cb_p3_vfy_mode"
+#define NVS_CONFIG_P3_COINBASE_MAX_FEE     "cb_p3_max_fee"
+#define NVS_CONFIG_P3_COINBASE_VERIFY_FORCE "cb_p3_vfy_frc"
 
 // OTP
 #define NVS_CONFIG_OTP_SECRET "otp_secret"
@@ -102,6 +121,11 @@
 
 #define NVS_CONFIG_POOL_MODE_BALANCE "pool_balance"
 #define NVS_CONFIG_POOL_MODE "pool_mode"
+// Per-pool weights for quad-pool mode (relative, normalized at runtime)
+#define NVS_CONFIG_POOL_WEIGHT0 "pool_w0"
+#define NVS_CONFIG_POOL_WEIGHT1 "pool_w1"
+#define NVS_CONFIG_POOL_WEIGHT2 "pool_w2"
+#define NVS_CONFIG_POOL_WEIGHT3 "pool_w3"
 
 // Stratum V2
 #define NVS_CONFIG_STRATUM_PROTOCOL "sv2_proto"
@@ -112,6 +136,14 @@
 #define NVS_CONFIG_FB_SV2_AUTHORITY_PUBKEY "fbsv2_authpk"
 #define NVS_CONFIG_FB_SV2_CHANNEL_TYPE "fbsv2_chtype"
 #define NVS_CONFIG_FB_SV2_REQUIRE_AUTH "fbsv2_reqauth"
+#define NVS_CONFIG_P2_STRATUM_PROTOCOL "sv2p2_proto"
+#define NVS_CONFIG_P2_SV2_AUTHORITY_PUBKEY "sv2p2_auth_pk"
+#define NVS_CONFIG_P2_SV2_CHANNEL_TYPE "sv2p2_chtype"
+#define NVS_CONFIG_P2_SV2_REQUIRE_AUTH "sv2p2_reqauth"
+#define NVS_CONFIG_P3_STRATUM_PROTOCOL "sv2p3_proto"
+#define NVS_CONFIG_P3_SV2_AUTHORITY_PUBKEY "sv2p3_auth_pk"
+#define NVS_CONFIG_P3_SV2_CHANNEL_TYPE "sv2p3_chtype"
+#define NVS_CONFIG_P3_SV2_REQUIRE_AUTH "sv2p3_reqauth"
 
 #if defined(CONFIG_FAN_MODE_MANUAL)
 #define CONFIG_AUTO_FAN_SPEED_VALUE 0
@@ -155,6 +187,12 @@ namespace Config {
     inline char* getStratumFallbackURL() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_FALLBACK_URL, CONFIG_STRATUM_FALLBACK_URL); }
     inline char* getStratumFallbackUser() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_FALLBACK_USER, CONFIG_STRATUM_FALLBACK_USER); }
     inline char* getStratumFallbackPass() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_FALLBACK_PASS, CONFIG_STRATUM_FALLBACK_PW); }
+    inline char* getStratumP2URL() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P2_URL, ""); }
+    inline char* getStratumP2User() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P2_USER, ""); }
+    inline char* getStratumP2Pass() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P2_PASS, ""); }
+    inline char* getStratumP3URL() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P3_URL, ""); }
+    inline char* getStratumP3User() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P3_USER, ""); }
+    inline char* getStratumP3Pass() { return cfgGetStrAlloc(NVS_CONFIG_STRATUM_P3_PASS, ""); }
     inline char* getInfluxURL() { return cfgGetStrAlloc(NVS_CONFIG_INFLUX_URL, CONFIG_INFLUX_URL); }
     inline char* getInfluxToken() { return cfgGetStrAlloc(NVS_CONFIG_INFLUX_TOKEN, CONFIG_INFLUX_TOKEN); }
     inline char* getInfluxBucket() { return cfgGetStrAlloc(NVS_CONFIG_INFLUX_BUCKET, CONFIG_INFLUX_BUCKET); }
@@ -378,31 +416,242 @@ namespace Config {
     inline void setOTPEnabled(bool value) { cfgSetU16(NVS_CONFIG_OTP_ENABLED, value ? 1 : 0); }
     inline bool isOTPEnabled() { return cfgGetU16(NVS_CONFIG_OTP_ENABLED, 0) != 0; }
 
+    // ---- Indexed pool accessors (0 = primary, 1 = fallback, 2/3 = quad pools) ----
+    // The legacy primary/fallback settings keep their own NVS keys; pools 2 and 3
+    // use the dedicated stratum_p2_*/stratum_p3_* keys. Invalid indexes fall back
+    // to the primary pool so callers can never walk off the arrays.
+    inline char* getStratumURLAt(int pool) {
+        switch (pool) {
+            case 1:  return getStratumFallbackURL();
+            case 2:  return getStratumP2URL();
+            case 3:  return getStratumP3URL();
+            default: return getStratumURL();
+        }
+    }
+    inline char* getStratumUserAt(int pool) {
+        switch (pool) {
+            case 1:  return getStratumFallbackUser();
+            case 2:  return getStratumP2User();
+            case 3:  return getStratumP3User();
+            default: return getStratumUser();
+        }
+    }
+    inline char* getStratumPassAt(int pool) {
+        switch (pool) {
+            case 1:  return getStratumFallbackPass();
+            case 2:  return getStratumP2Pass();
+            case 3:  return getStratumP3Pass();
+            default: return getStratumPass();
+        }
+    }
+    inline uint16_t getStratumPortAt(int pool) {
+        switch (pool) {
+            case 1:  return getStratumFallbackPortNumber();
+            case 2:  return cfgGetU16(NVS_CONFIG_STRATUM_P2_PORT, 0);
+            case 3:  return cfgGetU16(NVS_CONFIG_STRATUM_P3_PORT, 0);
+            default: return getStratumPortNumber();
+        }
+    }
+    inline bool isStratumEnonceSubscribeAt(int pool) {
+        switch (pool) {
+            case 1:  return isStratumFallbackEnonceSubscribe();
+            case 2:  return cfgGetU16(NVS_CONFIG_STRATUM_P2_ENONCE_SUB, 0) != 0;
+            case 3:  return cfgGetU16(NVS_CONFIG_STRATUM_P3_ENONCE_SUB, 0) != 0;
+            default: return isStratumEnonceSubscribe();
+        }
+    }
+    inline bool isStratumTLSAt(int pool) {
+        switch (pool) {
+            case 1:  return isStratumFallbackTLS();
+            case 2:  return cfgGetU16(NVS_CONFIG_STRATUM_P2_TLS, 0) != 0;
+            case 3:  return cfgGetU16(NVS_CONFIG_STRATUM_P3_TLS, 0) != 0;
+            default: return isStratumTLS();
+        }
+    }
+    inline uint16_t getStratumProtocolAt(int pool) {
+        switch (pool) {
+            case 1:  return getFallbackStratumProtocol();
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_STRATUM_PROTOCOL, 0);
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_STRATUM_PROTOCOL, 0);
+            default: return getStratumProtocol();
+        }
+    }
+    inline void setStratumURLAt(int pool, const char* value) {
+        switch (pool) {
+            case 1:  setStratumFallbackURL(value); break;
+            case 2:  cfgSetStr(NVS_CONFIG_STRATUM_P2_URL, value); break;
+            case 3:  cfgSetStr(NVS_CONFIG_STRATUM_P3_URL, value); break;
+            default: setStratumURL(value); break;
+        }
+    }
+    inline void setStratumUserAt(int pool, const char* value) {
+        switch (pool) {
+            case 1:  setStratumFallbackUser(value); break;
+            case 2:  cfgSetStr(NVS_CONFIG_STRATUM_P2_USER, value); break;
+            case 3:  cfgSetStr(NVS_CONFIG_STRATUM_P3_USER, value); break;
+            default: setStratumUser(value); break;
+        }
+    }
+    inline void setStratumPassAt(int pool, const char* value) {
+        switch (pool) {
+            case 1:  setStratumFallbackPass(value); break;
+            case 2:  cfgSetStr(NVS_CONFIG_STRATUM_P2_PASS, value); break;
+            case 3:  cfgSetStr(NVS_CONFIG_STRATUM_P3_PASS, value); break;
+            default: setStratumPass(value); break;
+        }
+    }
+    inline void setStratumPortAt(int pool, uint16_t value) {
+        switch (pool) {
+            case 1:  setStratumFallbackPortNumber(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_STRATUM_P2_PORT, value); break;
+            case 3:  cfgSetU16(NVS_CONFIG_STRATUM_P3_PORT, value); break;
+            default: setStratumPortNumber(value); break;
+        }
+    }
+    inline void setStratumEnonceSubscribeAt(int pool, bool value) {
+        switch (pool) {
+            case 1:  setStratumFallbackEnonceSubscribe(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_STRATUM_P2_ENONCE_SUB, value ? 1 : 0); break;
+            case 3:  cfgSetU16(NVS_CONFIG_STRATUM_P3_ENONCE_SUB, value ? 1 : 0); break;
+            default: setStratumEnonceSubscribe(value); break;
+        }
+    }
+    inline void setStratumTLSAt(int pool, bool value) {
+        switch (pool) {
+            case 1:  setStratumFallbackTLS(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_STRATUM_P2_TLS, value ? 1 : 0); break;
+            case 3:  cfgSetU16(NVS_CONFIG_STRATUM_P3_TLS, value ? 1 : 0); break;
+            default: setStratumTLS(value); break;
+        }
+    }
+    inline void setStratumProtocolAt(int pool, uint16_t value) {
+        switch (pool) {
+            case 1:  setFallbackStratumProtocol(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_STRATUM_PROTOCOL, value); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_STRATUM_PROTOCOL, value); break;
+            default: setStratumProtocol(value); break;
+        }
+    }
+
+    // ---- Indexed Stratum V2 accessors ----
+    inline char* getSV2AuthorityPubkeyAt(int pool) {
+        switch (pool) {
+            case 1:  return getFallbackSV2AuthorityPubkey();
+            case 2:  return cfgGetStrAlloc(NVS_CONFIG_P2_SV2_AUTHORITY_PUBKEY, "");
+            case 3:  return cfgGetStrAlloc(NVS_CONFIG_P3_SV2_AUTHORITY_PUBKEY, "");
+            default: return getSV2AuthorityPubkey();
+        }
+    }
+    inline void setSV2AuthorityPubkeyAt(int pool, const char* value) {
+        switch (pool) {
+            case 1:  setFallbackSV2AuthorityPubkey(value); break;
+            case 2:  cfgSetStr(NVS_CONFIG_P2_SV2_AUTHORITY_PUBKEY, value); break;
+            case 3:  cfgSetStr(NVS_CONFIG_P3_SV2_AUTHORITY_PUBKEY, value); break;
+            default: setSV2AuthorityPubkey(value); break;
+        }
+    }
+    inline uint16_t getSV2ChannelTypeAt(int pool) {
+        switch (pool) {
+            case 1:  return getFallbackSV2ChannelType();
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_SV2_CHANNEL_TYPE, 0);
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_SV2_CHANNEL_TYPE, 0);
+            default: return getSV2ChannelType();
+        }
+    }
+    inline void setSV2ChannelTypeAt(int pool, uint16_t value) {
+        switch (pool) {
+            case 1:  setFallbackSV2ChannelType(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_SV2_CHANNEL_TYPE, value); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_SV2_CHANNEL_TYPE, value); break;
+            default: setSV2ChannelType(value); break;
+        }
+    }
+    inline bool isSV2RequireAuthAt(int pool) {
+        switch (pool) {
+            case 1:  return isFallbackSV2RequireAuth();
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_SV2_REQUIRE_AUTH, 0) != 0;
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_SV2_REQUIRE_AUTH, 0) != 0;
+            default: return isSV2RequireAuth();
+        }
+    }
+    inline void setSV2RequireAuthAt(int pool, bool value) {
+        switch (pool) {
+            case 1:  setFallbackSV2RequireAuth(value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_SV2_REQUIRE_AUTH, value ? 1 : 0); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_SV2_REQUIRE_AUTH, value ? 1 : 0); break;
+            default: setSV2RequireAuth(value); break;
+        }
+    }
+
+    // ---- Quad-pool weights (relative share, 0 = pool idle) ----
+    inline uint16_t getPoolWeight(int pool) {
+        switch (pool) {
+            case 0:  return cfgGetU16(NVS_CONFIG_POOL_WEIGHT0, 25);
+            case 1:  return cfgGetU16(NVS_CONFIG_POOL_WEIGHT1, 25);
+            case 2:  return cfgGetU16(NVS_CONFIG_POOL_WEIGHT2, 25);
+            case 3:  return cfgGetU16(NVS_CONFIG_POOL_WEIGHT3, 25);
+            default: return 25;
+        }
+    }
+    inline void setPoolWeight(int pool, uint16_t value) {
+        switch (pool) {
+            case 0:  cfgSetU16(NVS_CONFIG_POOL_WEIGHT0, value); break;
+            case 1:  cfgSetU16(NVS_CONFIG_POOL_WEIGHT1, value); break;
+            case 2:  cfgSetU16(NVS_CONFIG_POOL_WEIGHT2, value); break;
+            case 3:  cfgSetU16(NVS_CONFIG_POOL_WEIGHT3, value); break;
+            default: break;
+        }
+    }
+
     // 0 = disabled, 1 = Basic (address present), 2 = Extended (address present + fee <= maxFee)
     inline void setCoinbaseVerifyMode(int pool, uint16_t v) {
-        pool == 0 ? cfgSetU16(NVS_CONFIG_COINBASE_VERIFY_MODE, v)
-                  : cfgSetU16(NVS_CONFIG_FB_COINBASE_VERIFY_MODE, v);
+        switch (pool) {
+            case 1:  cfgSetU16(NVS_CONFIG_FB_COINBASE_VERIFY_MODE, v); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_COINBASE_VERIFY_MODE, v); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_COINBASE_VERIFY_MODE, v); break;
+            default: cfgSetU16(NVS_CONFIG_COINBASE_VERIFY_MODE, v); break;
+        }
     }
     inline uint16_t getCoinbaseVerifyMode(int pool = 0) {
-        return pool == 0 ? cfgGetU16(NVS_CONFIG_COINBASE_VERIFY_MODE, 0)
-                         : cfgGetU16(NVS_CONFIG_FB_COINBASE_VERIFY_MODE, 0);
+        switch (pool) {
+            case 1:  return cfgGetU16(NVS_CONFIG_FB_COINBASE_VERIFY_MODE, 0);
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_COINBASE_VERIFY_MODE, 0);
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_COINBASE_VERIFY_MODE, 0);
+            default: return cfgGetU16(NVS_CONFIG_COINBASE_VERIFY_MODE, 0);
+        }
     }
     inline void setCoinbaseMaxFee(int pool, uint16_t v) {
-        pool == 0 ? cfgSetU16(NVS_CONFIG_COINBASE_MAX_FEE, v)
-                  : cfgSetU16(NVS_CONFIG_FB_COINBASE_MAX_FEE, v);
+        switch (pool) {
+            case 1:  cfgSetU16(NVS_CONFIG_FB_COINBASE_MAX_FEE, v); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_COINBASE_MAX_FEE, v); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_COINBASE_MAX_FEE, v); break;
+            default: cfgSetU16(NVS_CONFIG_COINBASE_MAX_FEE, v); break;
+        }
     }
     // stored as tenths of percent: 5 = 0.5%, 30 = 3.0%
     inline uint16_t getCoinbaseMaxFee(int pool = 0) {
-        return pool == 0 ? cfgGetU16(NVS_CONFIG_COINBASE_MAX_FEE, 30)
-                         : cfgGetU16(NVS_CONFIG_FB_COINBASE_MAX_FEE, 30);
+        switch (pool) {
+            case 1:  return cfgGetU16(NVS_CONFIG_FB_COINBASE_MAX_FEE, 30);
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_COINBASE_MAX_FEE, 30);
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_COINBASE_MAX_FEE, 30);
+            default: return cfgGetU16(NVS_CONFIG_COINBASE_MAX_FEE, 30);
+        }
     }
     inline void setCoinbaseVerifyForce(int pool, bool v) {
-        pool == 0 ? cfgSetU16(NVS_CONFIG_COINBASE_VERIFY_FORCE, v ? 1 : 0)
-                  : cfgSetU16(NVS_CONFIG_FB_COINBASE_VERIFY_FORCE, v ? 1 : 0);
+        switch (pool) {
+            case 1:  cfgSetU16(NVS_CONFIG_FB_COINBASE_VERIFY_FORCE, v ? 1 : 0); break;
+            case 2:  cfgSetU16(NVS_CONFIG_P2_COINBASE_VERIFY_FORCE, v ? 1 : 0); break;
+            case 3:  cfgSetU16(NVS_CONFIG_P3_COINBASE_VERIFY_FORCE, v ? 1 : 0); break;
+            default: cfgSetU16(NVS_CONFIG_COINBASE_VERIFY_FORCE, v ? 1 : 0); break;
+        }
     }
     inline bool getCoinbaseVerifyForce(int pool = 0) {
-        return pool == 0 ? cfgGetU16(NVS_CONFIG_COINBASE_VERIFY_FORCE, 0) != 0
-                         : cfgGetU16(NVS_CONFIG_FB_COINBASE_VERIFY_FORCE, 0) != 0;
+        switch (pool) {
+            case 1:  return cfgGetU16(NVS_CONFIG_FB_COINBASE_VERIFY_FORCE, 0) != 0;
+            case 2:  return cfgGetU16(NVS_CONFIG_P2_COINBASE_VERIFY_FORCE, 0) != 0;
+            case 3:  return cfgGetU16(NVS_CONFIG_P3_COINBASE_VERIFY_FORCE, 0) != 0;
+            default: return cfgGetU16(NVS_CONFIG_COINBASE_VERIFY_FORCE, 0) != 0;
+        }
     }
 
     void migrate_config();

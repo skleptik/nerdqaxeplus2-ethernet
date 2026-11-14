@@ -45,13 +45,15 @@ export class EditComponent implements OnInit {
 
   public lastCoinbaseVerifyMode: number = 1;
   public lastFallbackCoinbaseVerifyMode: number = 1;
+  public lastP2CoinbaseVerifyMode: number = 1;
+  public lastP3CoinbaseVerifyMode: number = 1;
 
   // WiFi scan
   public apActive = false;
   public wifiScanning = false;
   public wifiScanResults: { ssid: string; rssi: number; authmode: number }[] = [];
 
-  toggleCoinbaseVerify(enabled: boolean, controlName: string, lastRef: 'lastCoinbaseVerifyMode' | 'lastFallbackCoinbaseVerifyMode') {
+  toggleCoinbaseVerify(enabled: boolean, controlName: string, lastRef: 'lastCoinbaseVerifyMode' | 'lastFallbackCoinbaseVerifyMode' | 'lastP2CoinbaseVerifyMode' | 'lastP3CoinbaseVerifyMode') {
     const ctrl = this.form.controls[controlName];
     if (enabled) {
       ctrl.setValue(this[lastRef]);
@@ -87,6 +89,8 @@ export class EditComponent implements OnInit {
     'poolMode',
     'stratumProtocol',
     'fallbackStratumProtocol',
+    'p2StratumProtocol',
+    'p3StratumProtocol',
   ]);
 
   @Input() uri = '';
@@ -259,6 +263,70 @@ export class EditComponent implements OnInit {
           sv2RequireAuth: [info.pools[0].sv2RequireAuth ?? false],
           fallbackSv2RequireAuth: [info.pools[1].sv2RequireAuth ?? false],
 
+          stratumWeight: [info.pools[0].weight ?? 25, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(100),
+          ]],
+          fallbackStratumWeight: [info.pools[1].weight ?? 25, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(100),
+          ]],
+
+          // --- Pool 3 / 4 (quad-pool mode) ---
+          p2StratumURL: [info.pools[2]?.url ?? '', [
+            Validators.pattern(/^(?!.*stratum\+tcp:\/\/).*$/),
+            Validators.pattern(/^[^:]*$/),
+          ]],
+          p2StratumPort: [info.pools[2]?.port ?? 0, [
+            Validators.pattern(/^[^:]*$/),
+            Validators.min(0),
+            Validators.max(65353)
+          ]],
+          p2StratumUser: [info.pools[2]?.user ?? ''],
+          p2StratumPassword: ['*****'],
+          p2StratumEnonceSubscribe: [info.pools[2]?.enonceSubscribe == 1],
+          p2StratumTLS: [info.pools[2]?.tls == 1],
+          p2StratumProtocol: [info.pools[2]?.protocol ?? 0],
+          p2Sv2AuthorityPubkey: [info.pools[2]?.sv2AuthorityPubkey ?? ''],
+          p2Sv2ChannelType: [info.pools[2]?.sv2ChannelType ?? 0],
+          p2Sv2RequireAuth: [info.pools[2]?.sv2RequireAuth ?? false],
+          p2CoinbaseVerifyMode: [info.pools[2]?.coinbaseVerifyMode ?? 0],
+          p2CoinbaseMaxFee: [info.pools[2]?.coinbaseMaxFee ?? 3],
+          p2CoinbaseVerifyForce: [info.pools[2]?.coinbaseVerifyForce ?? false],
+          p2Weight: [info.pools[2]?.weight ?? 25, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(100),
+          ]],
+
+          p3StratumURL: [info.pools[3]?.url ?? '', [
+            Validators.pattern(/^(?!.*stratum\+tcp:\/\/).*$/),
+            Validators.pattern(/^[^:]*$/),
+          ]],
+          p3StratumPort: [info.pools[3]?.port ?? 0, [
+            Validators.pattern(/^[^:]*$/),
+            Validators.min(0),
+            Validators.max(65353)
+          ]],
+          p3StratumUser: [info.pools[3]?.user ?? ''],
+          p3StratumPassword: ['*****'],
+          p3StratumEnonceSubscribe: [info.pools[3]?.enonceSubscribe == 1],
+          p3StratumTLS: [info.pools[3]?.tls == 1],
+          p3StratumProtocol: [info.pools[3]?.protocol ?? 0],
+          p3Sv2AuthorityPubkey: [info.pools[3]?.sv2AuthorityPubkey ?? ''],
+          p3Sv2ChannelType: [info.pools[3]?.sv2ChannelType ?? 0],
+          p3Sv2RequireAuth: [info.pools[3]?.sv2RequireAuth ?? false],
+          p3CoinbaseVerifyMode: [info.pools[3]?.coinbaseVerifyMode ?? 0],
+          p3CoinbaseMaxFee: [info.pools[3]?.coinbaseMaxFee ?? 3],
+          p3CoinbaseVerifyForce: [info.pools[3]?.coinbaseVerifyForce ?? false],
+          p3Weight: [info.pools[3]?.weight ?? 25, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(100),
+          ]],
+
           poolMode: [info.poolMode ?? 0, [Validators.required]],                   // 0 = Failover, 1 = Dual
           poolBalance: [info.poolBalance ?? 50, [                                   // Anteil PRIMARY in %
             Validators.required,
@@ -314,6 +382,8 @@ export class EditComponent implements OnInit {
 
         this.lastCoinbaseVerifyMode = info.pools[0].coinbaseVerifyMode || 1;
         this.lastFallbackCoinbaseVerifyMode = info.pools[1].coinbaseVerifyMode || 1;
+        this.lastP2CoinbaseVerifyMode = info.pools[2]?.coinbaseVerifyMode || 1;
+        this.lastP3CoinbaseVerifyMode = info.pools[3]?.coinbaseVerifyMode || 1;
 
         this.form.controls['autofanspeed'].valueChanges
           .pipe(startWith(this.form.controls['autofanspeed'].value))
@@ -422,6 +492,7 @@ export class EditComponent implements OnInit {
       coinbaseVerifyMode: f.coinbaseVerifyMode,
       coinbaseMaxFee: f.coinbaseMaxFee,
       coinbaseVerifyForce: !!f.coinbaseVerifyForce,
+      weight: f.stratumWeight,
     };
     if (f.stratumPassword !== '*****') pool0.password = f.stratumPassword;
 
@@ -438,8 +509,43 @@ export class EditComponent implements OnInit {
       coinbaseVerifyMode: f.fallbackCoinbaseVerifyMode,
       coinbaseMaxFee: f.fallbackCoinbaseMaxFee,
       coinbaseVerifyForce: !!f.fallbackCoinbaseVerifyForce,
+      weight: f.fallbackStratumWeight,
     };
     if (f.fallbackStratumPassword !== '*****') pool1.password = f.fallbackStratumPassword;
+
+    const pool2: any = {
+      url: f.p2StratumURL,
+      port: f.p2StratumPort,
+      user: f.p2StratumUser,
+      enonceSubscribe: !!f.p2StratumEnonceSubscribe,
+      tls: !!f.p2StratumTLS,
+      protocol: f.p2StratumProtocol,
+      sv2AuthorityPubkey: f.p2Sv2AuthorityPubkey,
+      sv2ChannelType: f.p2Sv2ChannelType,
+      sv2RequireAuth: !!f.p2Sv2RequireAuth,
+      coinbaseVerifyMode: f.p2CoinbaseVerifyMode,
+      coinbaseMaxFee: f.p2CoinbaseMaxFee,
+      coinbaseVerifyForce: !!f.p2CoinbaseVerifyForce,
+      weight: f.p2Weight,
+    };
+    if (f.p2StratumPassword !== '*****') pool2.password = f.p2StratumPassword;
+
+    const pool3: any = {
+      url: f.p3StratumURL,
+      port: f.p3StratumPort,
+      user: f.p3StratumUser,
+      enonceSubscribe: !!f.p3StratumEnonceSubscribe,
+      tls: !!f.p3StratumTLS,
+      protocol: f.p3StratumProtocol,
+      sv2AuthorityPubkey: f.p3Sv2AuthorityPubkey,
+      sv2ChannelType: f.p3Sv2ChannelType,
+      sv2RequireAuth: !!f.p3Sv2RequireAuth,
+      coinbaseVerifyMode: f.p3CoinbaseVerifyMode,
+      coinbaseMaxFee: f.p3CoinbaseMaxFee,
+      coinbaseVerifyForce: !!f.p3CoinbaseVerifyForce,
+      weight: f.p3Weight,
+    };
+    if (f.p3StratumPassword !== '*****') pool3.password = f.p3StratumPassword;
 
     // Build fans[] array
     const fans: any[] = [
@@ -474,7 +580,7 @@ export class EditComponent implements OnInit {
       poolMode: f.poolMode,
       poolBalance: f.poolBalance,
       stratumKeep: f.stratumKeep ? 1 : 0,
-      pools: [pool0, pool1],
+      pools: [pool0, pool1, pool2, pool3],
       // Fans
       fans,
       invertFanPolarity: !!f.invertFanPolarity,
@@ -544,6 +650,16 @@ export class EditComponent implements OnInit {
   showFallbackStratumPassword: boolean = false;
   toggleFallbackStratumPasswordVisibility() {
     this.showFallbackStratumPassword = !this.showFallbackStratumPassword;
+  }
+
+  showP2StratumPassword: boolean = false;
+  toggleP2StratumPasswordVisibility() {
+    this.showP2StratumPassword = !this.showP2StratumPassword;
+  }
+
+  showP3StratumPassword: boolean = false;
+  toggleP3StratumPasswordVisibility() {
+    this.showP3StratumPassword = !this.showP3StratumPassword;
   }
 
   showWifiPassword: boolean = false;
@@ -693,12 +809,12 @@ export class EditComponent implements OnInit {
       });
   }
 
-  public poolTabHeader(i: 0 | 1) {
-    const protoKey = i === 0 ? 'stratumProtocol' : 'fallbackStratumProtocol';
-    const proto = this.form?.get(protoKey)?.value;
+  public poolTabHeader(i: number) {
+    const protoKeys = ['stratumProtocol', 'fallbackStratumProtocol', 'p2StratumProtocol', 'p3StratumProtocol'];
+    const proto = this.form?.get(protoKeys[i] ?? protoKeys[0])?.value;
     const protoLabel = proto === 1 ? ' (SV2)' : ' (SV1)';
 
-    if (this.form?.get("poolMode")?.value == 0) {
+    if (this.form?.get("poolMode")?.value == 0 && i <= 1) {
       if (i == 0) {
         return this.translate.instant('SETTINGS.PRIMARY_STRATUM_POOL') + protoLabel;
       }
